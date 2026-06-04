@@ -1,0 +1,305 @@
+<script lang="ts">
+  import { scene } from '../stores/scene.svelte.ts'
+  import { selection } from '../stores/selection.svelte.ts'
+  import type { Node, Node2D, Sprite } from 'beo'
+
+  // Get selected node reactively
+  let selectedNode = $derived(
+    selection.selectedNodeId
+      ? scene.activeScene?.findById(selection.selectedNodeId) ?? null
+      : null
+  )
+
+  function isNode2D(node: Node): node is Node2D {
+    return 'x' in node && 'y' in node
+  }
+
+  function isSprite(node: Node): node is Sprite {
+    return 'texture' in node
+  }
+
+  function update<T>(key: string, value: T) {
+    if (!selectedNode) return
+    // @ts-expect-error dynamic property update
+    selectedNode[key] = value
+    scene.markDirty()
+  }
+
+  function parseNum(v: string): number {
+    const n = parseFloat(v)
+    return isNaN(n) ? 0 : n
+  }
+</script>
+
+<aside class="inspector-panel">
+  <header class="panel-header">
+    <span class="panel-title">Inspector</span>
+  </header>
+
+  <div class="inspector-body">
+    {#if !selectedNode}
+      <p class="empty-state">Select a node to inspect</p>
+    {:else}
+      <!-- Node base properties -->
+      <section class="prop-section">
+        <h3 class="section-title">Node</h3>
+
+        <label class="prop-row">
+          <span class="prop-label">Name</span>
+          <input
+            class="prop-input"
+            type="text"
+            value={selectedNode.name}
+            oninput={(e) => update('name', (e.target as HTMLInputElement).value)}
+          />
+        </label>
+
+        <div class="prop-row">
+          <span class="prop-label">Type</span>
+          <span class="prop-value-static">{selectedNode.type}</span>
+        </div>
+
+        <label class="prop-row">
+          <span class="prop-label">Active</span>
+          <input
+            type="checkbox"
+            checked={selectedNode.active}
+            onchange={(e) => update('active', (e.target as HTMLInputElement).checked)}
+          />
+        </label>
+      </section>
+
+      <!-- Node2D transform -->
+      {#if isNode2D(selectedNode)}
+        <section class="prop-section">
+          <h3 class="section-title">Transform</h3>
+
+          <div class="prop-row">
+            <span class="prop-label">Position</span>
+            <div class="vec2-inputs">
+              <label>
+                <span class="axis-label">X</span>
+                <input
+                  class="prop-input narrow"
+                  type="number"
+                  value={selectedNode.x}
+                  oninput={(e) => update('x', parseNum((e.target as HTMLInputElement).value))}
+                />
+              </label>
+              <label>
+                <span class="axis-label">Y</span>
+                <input
+                  class="prop-input narrow"
+                  type="number"
+                  value={selectedNode.y}
+                  oninput={(e) => update('y', parseNum((e.target as HTMLInputElement).value))}
+                />
+              </label>
+            </div>
+          </div>
+
+          <div class="prop-row">
+            <span class="prop-label">Scale</span>
+            <div class="vec2-inputs">
+              <label>
+                <span class="axis-label">X</span>
+                <input
+                  class="prop-input narrow"
+                  type="number"
+                  step="0.1"
+                  value={selectedNode.scaleX}
+                  oninput={(e) => update('scaleX', parseNum((e.target as HTMLInputElement).value))}
+                />
+              </label>
+              <label>
+                <span class="axis-label">Y</span>
+                <input
+                  class="prop-input narrow"
+                  type="number"
+                  step="0.1"
+                  value={selectedNode.scaleY}
+                  oninput={(e) => update('scaleY', parseNum((e.target as HTMLInputElement).value))}
+                />
+              </label>
+            </div>
+          </div>
+
+          <label class="prop-row">
+            <span class="prop-label">Rotation</span>
+            <input
+              class="prop-input"
+              type="number"
+              step="0.01"
+              value={selectedNode.rotation.toFixed(3)}
+              oninput={(e) => update('rotation', parseNum((e.target as HTMLInputElement).value))}
+            />
+          </label>
+
+          <label class="prop-row">
+            <span class="prop-label">Z-Index</span>
+            <input
+              class="prop-input"
+              type="number"
+              value={selectedNode.zIndex}
+              oninput={(e) => update('zIndex', parseNum((e.target as HTMLInputElement).value))}
+            />
+          </label>
+        </section>
+      {/if}
+
+      <!-- Sprite properties -->
+      {#if isSprite(selectedNode)}
+        <section class="prop-section">
+          <h3 class="section-title">Sprite</h3>
+
+          <label class="prop-row">
+            <span class="prop-label">Texture</span>
+            <input
+              class="prop-input"
+              type="text"
+              placeholder="assets/textures/..."
+              value={selectedNode.texture}
+              oninput={(e) => update('texture', (e.target as HTMLInputElement).value)}
+            />
+          </label>
+
+          <label class="prop-row">
+            <span class="prop-label">Opacity</span>
+            <input
+              class="prop-input"
+              type="number"
+              min="0"
+              max="1"
+              step="0.05"
+              value={selectedNode.opacity}
+              oninput={(e) => update('opacity', parseNum((e.target as HTMLInputElement).value))}
+            />
+          </label>
+        </section>
+      {/if}
+    {/if}
+  </div>
+</aside>
+
+<style>
+  .inspector-panel {
+    display: flex;
+    flex-direction: column;
+    background: var(--panel-bg);
+    border-left: 1px solid var(--border);
+    overflow: hidden;
+    min-width: 0;
+  }
+
+  .panel-header {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel-header-bg);
+    flex-shrink: 0;
+  }
+
+  .panel-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+  }
+
+  .inspector-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 0;
+  }
+
+  .empty-state {
+    font-size: 12px;
+    color: var(--text-muted);
+    text-align: center;
+    padding: 24px 16px;
+    margin: 0;
+  }
+
+  .prop-section {
+    margin-bottom: 4px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 8px;
+  }
+
+  .section-title {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    padding: 8px 12px 4px;
+    margin: 0;
+  }
+
+  .prop-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 12px;
+    min-height: 28px;
+  }
+
+  .prop-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    flex: 0 0 70px;
+    user-select: none;
+  }
+
+  .prop-input {
+    flex: 1;
+    background: var(--input-bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    font-size: 12px;
+    font-family: var(--font-mono);
+    padding: 3px 6px;
+    outline: none;
+    transition: border-color 0.15s;
+    min-width: 0;
+  }
+
+  .prop-input:focus {
+    border-color: var(--accent);
+  }
+
+  .prop-input.narrow {
+    width: 60px;
+    flex: 0;
+  }
+
+  .prop-value-static {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+  }
+
+  .vec2-inputs {
+    display: flex;
+    gap: 6px;
+    flex: 1;
+  }
+
+  .vec2-inputs label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex: 1;
+  }
+
+  .axis-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-muted);
+    width: 10px;
+    text-align: center;
+  }
+</style>

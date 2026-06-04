@@ -1,89 +1,340 @@
-<script>
-  import svelteLogo from './assets/svelte.svg'
-  import viteLogo from './assets/vite.svg'
-  import heroImg from './assets/hero.png'
-  import Counter from './lib/Counter.svelte'
+<script lang="ts">
+  import { onMount } from 'svelte'
+  import ScenePanel    from './panels/ScenePanel.svelte'
+  import Viewport      from './panels/Viewport.svelte'
+  import Inspector     from './panels/Inspector.svelte'
+  import AssetBrowser  from './panels/AssetBrowser.svelte'
+  import ConsolePanel  from './panels/Console.svelte'
+  import { project }   from './stores/project.svelte.ts'
+  import { pickProjectFolder } from './fs/filesystem.ts'
+  import {
+    Diamond,
+    FilePlus,
+    FolderOpen,
+    Save,
+    Download,
+    Undo2,
+    Redo2,
+    HelpCircle,
+  } from '@lucide/svelte'
+
+  onMount(async () => {
+    await project.loadRecent()
+  })
+
+  async function newProject() {
+    const handle = await pickProjectFolder()
+    if (handle) await project.openProject(handle)
+  }
+
+  async function openProject() {
+    const handle = await pickProjectFolder()
+    if (handle) await project.openProject(handle)
+  }
 </script>
 
-<section id="center">
-  <div class="hero">
-    <img src={heroImg} class="base" width="170" height="179" alt="" />
-    <img src={svelteLogo} class="framework" alt="Svelte logo" />
-    <img src={viteLogo} class="vite" alt="Vite logo" />
-  </div>
-  <div>
-    <h1>Get started</h1>
-    <p>Edit <code>src/App.svelte</code> and save to test <code>HMR</code></p>
-  </div>
-  <Counter />
-</section>
+<svelte:head>
+  <title>BeoEngine{project.projectName ? ` — ${project.projectName}` : ''}</title>
+  <meta name="description" content="BeoEngine — web-based 2D game engine" />
+</svelte:head>
 
-<div class="ticks"></div>
+<div class="editor-root" id="editor-root">
 
-<section id="next-steps">
-  <div id="docs">
-    <svg class="icon" role="presentation" aria-hidden="true">
-      <use href="/icons.svg#documentation-icon"></use>
-    </svg>
-    <h2>Documentation</h2>
-    <p>Your questions, answered</p>
-    <ul>
-      <li>
-        <a href="https://vite.dev/" target="_blank" rel="noreferrer">
-          <img class="logo" src={viteLogo} alt="" />
-          Explore Vite
-        </a>
-      </li>
-      <li>
-        <a href="https://svelte.dev/" target="_blank" rel="noreferrer">
-          <img class="button-icon" src={svelteLogo} alt="" />
-          Learn more
-        </a>
-      </li>
-    </ul>
-  </div>
-  <div id="social">
-    <svg class="icon" role="presentation" aria-hidden="true">
-      <use href="/icons.svg#social-icon"></use>
-    </svg>
-    <h2>Connect with us</h2>
-    <p>Join the Vite community</p>
-    <ul>
-      <li>
-        <a href="https://github.com/vitejs/vite" target="_blank" rel="noreferrer">
-          <svg class="button-icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#github-icon"></use>
-          </svg>
-          GitHub
-        </a>
-      </li>
-      <li>
-        <a href="https://chat.vite.dev/" target="_blank" rel="noreferrer">
-          <svg class="button-icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#discord-icon"></use>
-          </svg>
-          Discord
-        </a>
-      </li>
-      <li>
-        <a href="https://x.com/vite_js" target="_blank" rel="noreferrer">
-          <svg class="button-icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#x-icon"></use>
-          </svg>
-          X.com
-        </a>
-      </li>
-      <li>
-        <a href="https://bsky.app/profile/vite.dev" target="_blank" rel="noreferrer">
-          <svg class="button-icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#bluesky-icon"></use>
-          </svg>
-          Bluesky
-        </a>
-      </li>
-    </ul>
-  </div>
-</section>
+  <!-- ── MenuBar ─────────────────────────────────────────────────── -->
+  <div class="menubar" role="menubar" aria-label="Main menu">
+    <div class="menubar-logo" aria-label="BeoEngine">
+      <span class="logo-icon"><Diamond size={16} strokeWidth={1.5} /></span>
+      <span class="logo-text">BeoEngine</span>
+    </div>
 
-<div class="ticks"></div>
-<section id="spacer"></section>
+    <div class="menubar-menus">
+      <div class="menu-group" role="none">
+        <button class="menu-item" role="menuitem">File</button>
+        <div class="dropdown" role="menu">
+          <button class="dropdown-item" role="menuitem" onclick={newProject}>
+            <FilePlus size={13} /> New Project…
+          </button>
+          <button class="dropdown-item" role="menuitem" onclick={openProject}>
+            <FolderOpen size={13} /> Open Project…
+          </button>
+          <hr class="dropdown-sep" />
+          <button class="dropdown-item" role="menuitem" disabled>
+            <Save size={13} /> Save Scene
+          </button>
+          <button class="dropdown-item" role="menuitem" disabled>
+            <Download size={13} /> Export…
+          </button>
+        </div>
+      </div>
+
+      <div class="menu-group" role="none">
+        <button class="menu-item" role="menuitem">Edit</button>
+        <div class="dropdown" role="menu">
+          <button class="dropdown-item" role="menuitem" disabled>
+            <Undo2 size={13} /> Undo
+          </button>
+          <button class="dropdown-item" role="menuitem" disabled>
+            <Redo2 size={13} /> Redo
+          </button>
+        </div>
+      </div>
+
+      <div class="menu-group" role="none">
+        <button class="menu-item" role="menuitem">Scene</button>
+        <div class="dropdown" role="menu">
+          <button class="dropdown-item" role="menuitem" disabled>Add Node</button>
+        </div>
+      </div>
+
+      <div class="menu-group" role="none">
+        <button class="menu-item" role="menuitem">Help</button>
+        <div class="dropdown" role="menu">
+          <button class="dropdown-item" role="menuitem">
+            <HelpCircle size={13} /> Documentation
+          </button>
+          <button class="dropdown-item" role="menuitem">
+            <Diamond size={13} /> About BeoEngine
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="menubar-right">
+      {#if project.projectName}
+        <span class="project-badge">{project.projectName}</span>
+      {:else}
+        <span class="no-project-badge">No Project</span>
+      {/if}
+    </div>
+  </div>
+
+  <!-- ── Main workspace ─────────────────────────────────────────── -->
+  <div class="workspace">
+
+    <!-- Left: Scene Panel -->
+    <div class="col-left">
+      <ScenePanel />
+    </div>
+
+    <!-- Centre: Viewport + Bottom panels -->
+    <div class="col-centre">
+      <div class="row-top">
+        <Viewport />
+      </div>
+      <div class="row-bottom">
+        <AssetBrowser />
+        <ConsolePanel />
+      </div>
+    </div>
+
+    <!-- Right: Inspector -->
+    <div class="col-right">
+      <Inspector />
+    </div>
+
+  </div>
+
+</div>
+
+<style>
+  .editor-root {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+    background: var(--bg);
+  }
+
+  /* ── MenuBar ─────────────────────────────────────────────────────── */
+  .menubar {
+    height: var(--menubar-h);
+    background: var(--menubar-bg);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 0;
+    flex-shrink: 0;
+    z-index: 100;
+    user-select: none;
+  }
+
+  .menubar-logo {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 0 16px;
+    border-right: 1px solid var(--border);
+    height: 100%;
+  }
+
+  .logo-icon {
+    font-size: 18px;
+    color: var(--accent);
+    line-height: 1;
+  }
+
+  .logo-text {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--text-bright);
+  }
+
+  .menubar-menus {
+    display: flex;
+    align-items: stretch;
+    height: 100%;
+    gap: 0;
+  }
+
+  .menu-group {
+    position: relative;
+    height: 100%;
+    display: flex;
+    align-items: center;
+  }
+
+  .menu-item {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 12.5px;
+    font-family: var(--font-sans);
+    padding: 0 12px;
+    height: 100%;
+    transition: background 0.1s, color 0.1s;
+    white-space: nowrap;
+  }
+
+  .menu-item:hover {
+    background: var(--hover-bg);
+    color: var(--text);
+  }
+
+  .menu-group:hover .dropdown {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .dropdown {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    min-width: 180px;
+    background: var(--surface2);
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    padding: 4px;
+    z-index: 200;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  }
+
+  .dropdown-item {
+    background: none;
+    border: none;
+    color: var(--text);
+    cursor: pointer;
+    font-size: 12.5px;
+    font-family: var(--font-sans);
+    padding: 6px 10px;
+    border-radius: 4px;
+    text-align: left;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background 0.1s;
+  }
+
+  .dropdown-item:hover:not(:disabled) {
+    background: var(--accent-subtle);
+    color: var(--accent-bright);
+  }
+
+  .dropdown-item:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+
+  .dropdown-sep {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 4px 0;
+  }
+
+  .menubar-right {
+    margin-left: auto;
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+  }
+
+  .project-badge {
+    font-size: 11px;
+    color: var(--accent);
+    background: var(--accent-subtle);
+    border: 1px solid var(--accent-border);
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-weight: 500;
+  }
+
+  .no-project-badge {
+    font-size: 11px;
+    color: var(--text-muted);
+    opacity: 0.5;
+  }
+
+  /* ── Workspace layout ────────────────────────────────────────────── */
+  .workspace {
+    flex: 1;
+    display: grid;
+    grid-template-columns: var(--scene-panel-w) 1fr var(--inspector-w);
+    grid-template-rows: 1fr;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .col-left,
+  .col-right {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .col-centre {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .row-top {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .row-bottom {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    height: var(--bottom-panel-h);
+    flex-shrink: 0;
+    overflow: hidden;
+    border-top: 1px solid var(--border);
+  }
+
+  .col-left :global(.scene-panel),
+  .col-right :global(.inspector-panel) {
+    flex: 1;
+  }
+
+  .row-top :global(.viewport-panel) {
+    flex: 1;
+  }
+</style>
