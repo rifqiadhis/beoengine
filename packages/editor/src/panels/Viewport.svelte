@@ -1,8 +1,9 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte'
-  import { Engine, Scene, Camera2D } from 'beo'
+  import { Engine, Scene, Camera2D, Sprite } from 'beo'
   import { viewport } from '../stores/viewport.svelte.ts'
   import { scene as sceneStore } from '../stores/scene.svelte.ts'
+  import { ProjectWatcher } from '../fs/watcher.ts'
   import { engineConsole } from '../stores/console.svelte.ts'
   import { project } from '../stores/project.svelte.ts'
   import {
@@ -18,6 +19,58 @@
   let engine: Engine | null = null
   let editorScene: Scene | null = null
   let rafHandle = 0
+  let watcher: ProjectWatcher | null = null
+
+  $effect(() => {
+    if (project.folderHandle) {
+      if (!watcher) {
+        watcher = new ProjectWatcher(project.folderHandle)
+        watcher.start(1000)
+      } else {
+        // Handle folder change
+        watcher.stop()
+        watcher = new ProjectWatcher(project.folderHandle)
+        watcher.start(1000)
+      }
+    } else if (watcher) {
+      watcher.stop()
+      watcher = null
+    }
+  })
+
+  // Periodically update watched files based on the active scene
+  $effect(() => {
+    if (watcher && editorScene) {
+      // Re-evaluate dependencies
+      const deps = new Set<{path: string, type: 'script' | 'texture'}>()
+      for (const n of editorScene.allNodes) {
+        if (n.script) deps.add({ path: n.script, type: 'script' })
+        if ((n as any).isSprite && (n as any).texture) deps.add({ path: (n as any).texture, type: 'texture' })
+      }
+      
+      watcher.clear()
+      for (const dep of deps) {
+        watcher.watch(dep.path, dep.type, () => handleHotReload(dep.path, dep.type))
+      }
+    }
+  })
+
+  async function handleHotReload(path: string, type: 'script' | 'texture') {
+    engineConsole.info(`[Hot Reload] Detected change in ${path}`)
+    if (type === 'script') {
+      if (viewport.playState === 'playing' && editorScene) {
+        await loadScriptsForScene(editorScene)
+        // Reset scene to apply new script logic
+        const jsonStr = SceneSerializer.serialize(editorScene)
+        const runtimeScene = SceneSerializer.deserialize(jsonStr)
+        engine?.loadScene(runtimeScene)
+      }
+    } else if (type === 'texture') {
+      // Force reload texture
+      engine?.reloadTexture(path)
+      sceneStore.markDirty()
+    }
+  }
 
   onMount(() => {
     try {
@@ -81,15 +134,63 @@
     cancelAnimationFrame(rafHandle)
   }
 
-  function handlePlay() {
-    if (!engine) return
+  import { compileTS } from '../scripting/transpiler.ts'
+  import { SceneSerializer, ScriptRegistry } from 'beo'
+
+  async function fetchLocalFileContent(path: string): Promise<string> {
+    if (!project.folderHandle) return ''
+    const parts = path.split('/')
+    let dir = project.folderHandle
+    for (let i = 0; i < parts.length - 1; i++) {
+      dir = await dir.getDirectoryHandle(parts[i])
+    }
+    const fileHandle = await dir.getFileHandle(parts[parts.length - 1])
+    const file = await fileHandle.getFile()
+    return await file.text()
+  }
+
+  async function loadScriptsForScene(scene: Scene) {
+    const scriptPaths = new Set<string>()
+    for (const n of scene.allNodes) {
+      if (n.script) scriptPaths.add(n.script)
+    }
+
+    for (const path of scriptPaths) {
+      try {
+        const tsCode = await fetchLocalFileContent(path)
+        const jsCode = compileTS(tsCode)
+        console.log("Transpiled jsCode for", path, ":", jsCode)
+        const blob = new Blob([jsCode], { type: 'application/javascript' })
+        const url = URL.createObjectURL(blob)
+        const module = await import(/* @vite-ignore */ url)
+        if (module.default) {
+          ScriptRegistry.set(path, module.default)
+        } else {
+          engineConsole.warn(`Script ${path} has no default export class`)
+        }
+        URL.revokeObjectURL(url)
+      } catch (err) {
+        engineConsole.error(`Failed to compile script ${path}: ${err}`)
+      }
+    }
+  }
+
+  async function handlePlay() {
+    if (!engine || !editorScene) return
     if (viewport.playState === 'paused') {
       engine.resume()
       viewport.play()
       engineConsole.info('Game resumed')
     } else {
       stopEditorLoop()
-      engine.resume()
+      
+      // Load scripts, then reset the scene to apply them
+      await loadScriptsForScene(editorScene)
+      const jsonStr = SceneSerializer.serialize(editorScene)
+      const runtimeScene = SceneSerializer.deserialize(jsonStr)
+      engine.loadScene(runtimeScene)
+      
+      engine.start()
       viewport.play()
       engineConsole.info('Game started')
     }
@@ -103,8 +204,14 @@
   }
 
   function handleStop() {
-    engine?.pause()
+    engine?.stop()
     viewport.stop()
+    
+    // Restore editor scene
+    if (editorScene && engine) {
+      engine.loadScene(editorScene)
+    }
+    
     startEditorLoop()
     engineConsole.info('Game stopped')
   }

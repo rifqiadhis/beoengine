@@ -43,6 +43,47 @@
   let availableTextures = $derived(
     project.assets.filter(a => IMAGE_EXTS.some(ext => a.toLowerCase().endsWith(ext)))
   )
+
+  import { writeTextFile, fileExists } from '../fs/filesystem.ts'
+
+  async function createNewScript() {
+    if (!project.folderHandle) return
+    const name = prompt('Enter script name (e.g. Player):')
+    if (!name) return
+
+    const cleanName = name.replace(/[^a-zA-Z0-9]/g, '')
+    if (!cleanName) return
+
+    const scriptPath = `scripts/${cleanName}.ts`
+
+    try {
+      const exists = await fileExists(project.folderHandle, scriptPath)
+      if (exists) {
+        alert(`Script ${scriptPath} already exists!`)
+        return
+      }
+
+      const baseClass = selectedNode ? selectedNode.type : 'Node2D'
+      const template = `import { ${baseClass}, Input } from "beo"
+
+export default class ${cleanName} extends ${baseClass} {
+  onCreate() {
+    
+  }
+
+  onUpdate(delta: number) {
+    
+  }
+}
+`
+      await writeTextFile(project.folderHandle, scriptPath, template)
+      await project.reloadAssets()
+      update('script', scriptPath)
+    } catch (err) {
+      console.error(err)
+      alert('Failed to create script')
+    }
+  }
 </script>
 
 <aside class="inspector-panel">
@@ -71,6 +112,24 @@
         <div class="prop-row">
           <span class="prop-label">Type</span>
           <span class="prop-value-static">{selectedNode.type}</span>
+        </div>
+
+        <div class="prop-row">
+          <span class="prop-label">Script</span>
+          <div class="script-input-group">
+            <select
+              class="prop-input"
+              value={selectedNode.script || ''}
+              onfocus={handleFocus}
+              onchange={(e) => update('script', (e.target as HTMLSelectElement).value)}
+            >
+              <option value="">(None)</option>
+              {#each project.assets.filter(a => a.endsWith('.ts')) as scriptPath}
+                <option value={scriptPath}>{scriptPath}</option>
+              {/each}
+            </select>
+            <button class="new-script-btn" onclick={createNewScript} title="Create New Script">+</button>
+          </div>
         </div>
 
         <label class="prop-row">
@@ -302,8 +361,31 @@
 
   .vec2-inputs {
     display: flex;
-    gap: 6px;
+    gap: 10px;
     flex: 1;
+  }
+
+  .script-input-group {
+    display: flex;
+    gap: 4px;
+    flex: 1;
+  }
+
+  .new-script-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    border-radius: 4px;
+    width: 24px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .new-script-btn:hover {
+    background: var(--hover-bg);
+    color: var(--text);
   }
 
   .vec2-inputs label {

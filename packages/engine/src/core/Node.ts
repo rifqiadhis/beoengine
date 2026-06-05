@@ -18,6 +18,9 @@ export class Node {
   /** Set to false to skip update + render for this node and its subtree */
   active: boolean = true
 
+  /** Path to a custom script extending this node (e.g. 'scripts/Player.ts') */
+  script: string = ''
+
   constructor(name?: string) {
     this.id = nextId()
     this.name = name ?? `Node_${this.id}`
@@ -91,6 +94,7 @@ export class Node {
       type: this.type,
       name: this.name,
       active: this.active,
+      script: this.script,
       properties: {},
       children: this.children.map(c => c.toJSON()),
     }
@@ -101,6 +105,7 @@ export class Node {
     if (data.id !== undefined) this.id = data.id
     if (data.name !== undefined) this.name = data.name
     if (data.active !== undefined) this.active = data.active
+    if (data.script !== undefined) this.script = data.script
     return this
   }
 }

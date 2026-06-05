@@ -13,6 +13,8 @@ export class Node2D extends Node {
   scaleY: number = 1
   zIndex: number = 0
 
+  get isNode2D(): boolean { return true }
+
   // ── World-space transform ──────────────────────────────────────────────
   /**
    * Returns the world-space position of this node by walking up
@@ -20,13 +22,13 @@ export class Node2D extends Node {
    */
   get worldX(): number {
     const p = this.parent
-    if (p instanceof Node2D) {
-      const cos = Math.cos(p.worldRotation)
-      const sin = Math.sin(p.worldRotation)
-      const wx = p.worldX
-      const wy = p.worldY
-      const sx = p.worldScaleX
-      const sy = p.worldScaleY
+    if (p && (p as any).isNode2D) {
+      const cos = Math.cos((p as any).worldRotation)
+      const sin = Math.sin((p as any).worldRotation)
+      const wx = (p as any).worldX
+      const wy = (p as any).worldY
+      const sx = (p as any).worldScaleX
+      const sy = (p as any).worldScaleY
       return wx + (this.x * sx) * cos - (this.y * sy) * sin
     }
     return this.x
@@ -34,13 +36,13 @@ export class Node2D extends Node {
 
   get worldY(): number {
     const p = this.parent
-    if (p instanceof Node2D) {
-      const cos = Math.cos(p.worldRotation)
-      const sin = Math.sin(p.worldRotation)
-      const wx = p.worldX
-      const wy = p.worldY
-      const sx = p.worldScaleX
-      const sy = p.worldScaleY
+    if (p && (p as any).isNode2D) {
+      const cos = Math.cos((p as any).worldRotation)
+      const sin = Math.sin((p as any).worldRotation)
+      const wx = (p as any).worldX
+      const wy = (p as any).worldY
+      const sx = (p as any).worldScaleX
+      const sy = (p as any).worldScaleY
       return wy + (this.x * sx) * sin + (this.y * sy) * cos
     }
     return this.y
@@ -48,19 +50,19 @@ export class Node2D extends Node {
 
   get worldRotation(): number {
     const p = this.parent
-    if (p instanceof Node2D) return p.worldRotation + this.rotation
+    if (p && (p as any).isNode2D) return (p as Node2D).worldRotation + this.rotation
     return this.rotation
   }
 
   get worldScaleX(): number {
     const p = this.parent
-    if (p instanceof Node2D) return p.worldScaleX * this.scaleX
+    if (p && (p as any).isNode2D) return (p as Node2D).worldScaleX * this.scaleX
     return this.scaleX
   }
 
   get worldScaleY(): number {
     const p = this.parent
-    if (p instanceof Node2D) return p.worldScaleY * this.scaleY
+    if (p && (p as any).isNode2D) return (p as Node2D).worldScaleY * this.scaleY
     return this.scaleY
   }
 

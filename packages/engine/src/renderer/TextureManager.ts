@@ -71,6 +71,15 @@ export class TextureManager {
     return this.cache.get(url) ?? null
   }
 
+  /** Remove a texture from cache so it will be re-fetched next time */
+  uncache(url: string): void {
+    const info = this.cache.get(url)
+    if (info) {
+      this.gl.deleteTexture(info.texture)
+      this.cache.delete(url)
+    }
+  }
+
   private _upload(img: HTMLImageElement): TextureInfo {
     const gl = this.gl
     const texture = gl.createTexture()

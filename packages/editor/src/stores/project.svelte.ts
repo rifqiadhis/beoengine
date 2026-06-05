@@ -49,8 +49,13 @@ function createProjectStore() {
       await saveRecentProject(recent)
       recentProjects = await loadRecentProjects()
 
+      await this.reloadAssets()
+    },
+
+    async reloadAssets() {
+      if (!folderHandle) return
       try {
-        assets = await listAllFiles(handle)
+        assets = await listAllFiles(folderHandle)
       } catch (e) {
         console.error('Failed to list assets', e)
         assets = []

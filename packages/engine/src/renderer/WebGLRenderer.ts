@@ -103,10 +103,10 @@ export class WebGLRenderer {
     // Collect all sprites (sorted by zIndex)
     const sprites: Sprite[] = []
     for (const node of scene.allNodes) {
-      if (node instanceof Sprite && node.active && node.texture) {
-        sprites.push(node)
+      if ((node as any).isSprite && node.active && (node as any).texture) {
+        sprites.push(node as Sprite)
         // Pre-load texture if needed
-        void this.textures.load(node.texture)
+        void this.textures.load((node as any).texture)
       }
     }
     sprites.sort((a, b) => a.zIndex - b.zIndex)

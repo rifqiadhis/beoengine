@@ -11,7 +11,7 @@
 import { Scene } from './Scene.ts'
 import { EventEmitter } from './EventEmitter.ts'
 import { WebGLRenderer } from '../renderer/WebGLRenderer.ts'
-import { Input } from '../input/Input.ts'
+import { Input, InputManager } from '../input/Input.ts'
 import { AssetManager } from '../assets/AssetManager.ts'
 import { AudioManager } from '../audio/AudioManager.ts'
 import type { Camera2D } from '../nodes/Camera2D.ts'
@@ -33,7 +33,7 @@ export interface EngineOptions {
 export class Engine extends EventEmitter<EngineEvents> {
   readonly canvas: HTMLCanvasElement
   readonly renderer: WebGLRenderer
-  readonly input: Input
+  readonly input: InputManager
   readonly assets: AssetManager
   readonly audio: AudioManager
 
@@ -48,7 +48,7 @@ export class Engine extends EventEmitter<EngineEvents> {
     super()
     this.canvas = options.canvas
     this.renderer = new WebGLRenderer(options.canvas)
-    this.input = new Input()
+    this.input = Input
     this.assets = new AssetManager()
     this.audio = new AudioManager()
   }
@@ -71,7 +71,7 @@ export class Engine extends EventEmitter<EngineEvents> {
 
   // ── Lifecycle ──────────────────────────────────────────────────────────
   start(): void {
-    if (this._running) return
+    if (this._running && !this._paused) return
     this._running = true
     this._paused = false
     this._lastTime = performance.now()
@@ -119,6 +119,11 @@ export class Engine extends EventEmitter<EngineEvents> {
    */
   setAssetResolver(resolver: (path: string) => Promise<string>): void {
     this.renderer.setAssetResolver(resolver)
+  }
+
+  /** Force re-fetch of a texture, useful for hot reloading */
+  reloadTexture(path: string): void {
+    this.renderer.textures.uncache(path)
   }
 
   // ── Game loop ──────────────────────────────────────────────────────────

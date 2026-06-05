@@ -11,7 +11,7 @@ export interface MouseState {
   isPressed(button: number): boolean
 }
 
-export class Input {
+export class InputManager {
   private held     = new Set<string>()
   private justDown = new Set<string>()
   private justUp   = new Set<string>()
@@ -105,3 +105,5 @@ export class Input {
     this.mouseJustUp.add(e.button)
   }
 }
+
+export const Input = new InputManager()

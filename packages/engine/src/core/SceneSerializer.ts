@@ -14,6 +14,11 @@ const NodeRegistry: Record<string, new () => Node> = {
   Camera2D,
 }
 
+/**
+ * Registry of user scripts available for deserialization.
+ */
+export const ScriptRegistry = new Map<string, new () => Node>()
+
 export class SceneSerializer {
   /**
    * Serializes a Scene into a .beo JSON string.
@@ -62,7 +67,13 @@ export class SceneSerializer {
   private static deserializeNode(data: any): Node | null {
     if (!data || !data.type) return null
 
-    const NodeClass = NodeRegistry[data.type]
+    let NodeClass = NodeRegistry[data.type]
+
+    // Use custom script class if registered
+    if (data.script && ScriptRegistry.has(data.script)) {
+      NodeClass = ScriptRegistry.get(data.script)!
+    }
+
     if (!NodeClass) {
       console.warn(`[SceneSerializer] Unknown node type: ${data.type}`)
       return null

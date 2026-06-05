@@ -21,6 +21,8 @@ export class Sprite extends Node2D {
   /** Tint colour (CSS hex). '' = no tint */
   tint: string = ''
 
+  get isSprite(): boolean { return true }
+
   constructor(name?: string, texture?: string) {
     super(name)
     if (texture) this.texture = texture
