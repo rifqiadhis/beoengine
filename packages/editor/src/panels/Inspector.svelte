@@ -1,14 +1,16 @@
 <script lang="ts">
   import { scene } from '../stores/scene.svelte.ts'
   import { selection } from '../stores/selection.svelte.ts'
+  import { history } from '../stores/history.svelte.ts'
   import type { Node, Node2D, Sprite } from 'beo'
 
   // Get selected node reactively
-  let selectedNode = $derived(
-    selection.selectedNodeId
+  let selectedNode = $derived((() => {
+    scene.version; // react to changes outside of Inspector
+    return selection.selectedNodeId
       ? scene.activeScene?.findById(selection.selectedNodeId) ?? null
       : null
-  )
+  })())
 
   function isNode2D(node: Node): node is Node2D {
     return 'x' in node && 'y' in node
@@ -16,6 +18,12 @@
 
   function isSprite(node: Node): node is Sprite {
     return 'texture' in node
+  }
+
+  function handleFocus() {
+    if (scene.activeScene) {
+      history.takeSnapshot(scene.activeScene)
+    }
   }
 
   function update<T>(key: string, value: T) {
@@ -50,7 +58,7 @@
             class="prop-input"
             type="text"
             value={selectedNode.name}
-            oninput={(e) => update('name', (e.target as HTMLInputElement).value)}
+            onfocus={handleFocus} oninput={(e) => update('name', (e.target as HTMLInputElement).value)}
           />
         </label>
 
@@ -64,7 +72,7 @@
           <input
             type="checkbox"
             checked={selectedNode.active}
-            onchange={(e) => update('active', (e.target as HTMLInputElement).checked)}
+            onfocus={handleFocus} onchange={(e) => update('active', (e.target as HTMLInputElement).checked)}
           />
         </label>
       </section>
@@ -83,7 +91,7 @@
                   class="prop-input narrow"
                   type="number"
                   value={selectedNode.x}
-                  oninput={(e) => update('x', parseNum((e.target as HTMLInputElement).value))}
+                  onfocus={handleFocus} oninput={(e) => update('x', parseNum((e.target as HTMLInputElement).value))}
                 />
               </label>
               <label>
@@ -92,7 +100,7 @@
                   class="prop-input narrow"
                   type="number"
                   value={selectedNode.y}
-                  oninput={(e) => update('y', parseNum((e.target as HTMLInputElement).value))}
+                  onfocus={handleFocus} oninput={(e) => update('y', parseNum((e.target as HTMLInputElement).value))}
                 />
               </label>
             </div>
@@ -108,7 +116,7 @@
                   type="number"
                   step="0.1"
                   value={selectedNode.scaleX}
-                  oninput={(e) => update('scaleX', parseNum((e.target as HTMLInputElement).value))}
+                  onfocus={handleFocus} oninput={(e) => update('scaleX', parseNum((e.target as HTMLInputElement).value))}
                 />
               </label>
               <label>
@@ -118,7 +126,7 @@
                   type="number"
                   step="0.1"
                   value={selectedNode.scaleY}
-                  oninput={(e) => update('scaleY', parseNum((e.target as HTMLInputElement).value))}
+                  onfocus={handleFocus} oninput={(e) => update('scaleY', parseNum((e.target as HTMLInputElement).value))}
                 />
               </label>
             </div>
@@ -131,7 +139,7 @@
               type="number"
               step="0.01"
               value={selectedNode.rotation.toFixed(3)}
-              oninput={(e) => update('rotation', parseNum((e.target as HTMLInputElement).value))}
+              onfocus={handleFocus} oninput={(e) => update('rotation', parseNum((e.target as HTMLInputElement).value))}
             />
           </label>
 
@@ -141,7 +149,7 @@
               class="prop-input"
               type="number"
               value={selectedNode.zIndex}
-              oninput={(e) => update('zIndex', parseNum((e.target as HTMLInputElement).value))}
+              onfocus={handleFocus} oninput={(e) => update('zIndex', parseNum((e.target as HTMLInputElement).value))}
             />
           </label>
         </section>
@@ -159,7 +167,7 @@
               type="text"
               placeholder="assets/textures/..."
               value={selectedNode.texture}
-              oninput={(e) => update('texture', (e.target as HTMLInputElement).value)}
+              onfocus={handleFocus} oninput={(e) => update('texture', (e.target as HTMLInputElement).value)}
             />
           </label>
 
@@ -172,7 +180,7 @@
               max="1"
               step="0.05"
               value={selectedNode.opacity}
-              oninput={(e) => update('opacity', parseNum((e.target as HTMLInputElement).value))}
+              onfocus={handleFocus} oninput={(e) => update('opacity', parseNum((e.target as HTMLInputElement).value))}
             />
           </label>
         </section>

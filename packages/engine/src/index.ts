@@ -11,6 +11,7 @@ export { Engine }         from './core/Engine.ts'
 export { Scene }          from './core/Scene.ts'
 export { Node }           from './core/Node.ts'
 export { EventEmitter }   from './core/EventEmitter.ts'
+export { SceneSerializer } from './core/SceneSerializer.ts'
 
 // Nodes
 export { Node2D }         from './nodes/Node2D.ts'

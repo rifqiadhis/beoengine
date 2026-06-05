@@ -1,7 +1,8 @@
 <script lang="ts">
   import { scene } from '../stores/scene.svelte.ts'
   import { selection } from '../stores/selection.svelte.ts'
-  import type { Node } from 'beo'
+  import { history } from '../stores/history.svelte.ts'
+  import { Node2D, Sprite, Camera2D, type Node } from 'beo'
   import {
     Plus,
     ChevronRight,
@@ -49,14 +50,74 @@
   }
 
   let rows = $derived(flattenTree(scene.nodeTree))
+
+  let showAddMenu = $state(false)
+
+  function handleAddNode(type: 'Node2D' | 'Sprite' | 'Camera2D') {
+    if (!scene.activeScene) return
+    history.takeSnapshot(scene.activeScene)
+
+    let newNode: Node
+    if (type === 'Sprite') newNode = new Sprite('New Sprite')
+    else if (type === 'Camera2D') newNode = new Camera2D('New Camera')
+    else newNode = new Node2D('New Node2D')
+
+    const parentId = selection.selectedNodeId
+    let parent = parentId ? scene.activeScene.findById(parentId) : null
+
+    if (parent) {
+      parent.addChild(newNode)
+    } else {
+      scene.activeScene.addNode(newNode)
+    }
+
+    scene.markDirty()
+    selection.select(newNode.id)
+    showAddMenu = false
+  }
+
+  function deleteSelectedNode() {
+    if (!scene.activeScene || !selection.selectedNodeId) return
+    history.takeSnapshot(scene.activeScene)
+
+    const node = scene.activeScene.findById(selection.selectedNodeId)
+    if (!node) return
+
+    if (node.parent) {
+      node.parent.removeChild(node)
+    } else {
+      scene.activeScene.removeNode(node)
+    }
+
+    selection.clear()
+    scene.markDirty()
+  }
+
+  function handleKeydown(e: KeyboardEvent) {
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      if (document.activeElement?.tagName === 'INPUT') return
+      deleteSelectedNode()
+    }
+  }
 </script>
+
+<svelte:window onkeydown={handleKeydown} />
 
 <aside class="scene-panel">
   <header class="panel-header">
     <span class="panel-title">Scene</span>
-    <button class="icon-btn" title="Add node" aria-label="Add node">
-      <Plus size={14} />
-    </button>
+    <div style="position: relative;">
+      <button class="icon-btn" title="Add node" aria-label="Add node" onclick={() => showAddMenu = !showAddMenu}>
+        <Plus size={14} />
+      </button>
+      {#if showAddMenu}
+        <div class="add-menu">
+          <button onclick={() => handleAddNode('Node2D')}><Box size={13} /> Node2D</button>
+          <button onclick={() => handleAddNode('Sprite')}><Image size={13} /> Sprite</button>
+          <button onclick={() => handleAddNode('Camera2D')}><Camera size={13} /> Camera2D</button>
+        </div>
+      {/if}
+    </div>
   </header>
 
   <div class="node-tree" role="tree">
@@ -140,6 +201,42 @@
   .icon-btn:hover {
     color: var(--text);
     background: var(--hover-bg);
+  }
+
+  .add-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 4px;
+    background: var(--surface2);
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    padding: 4px;
+    min-width: 130px;
+    z-index: 100;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .add-menu button {
+    background: none;
+    border: none;
+    color: var(--text);
+    padding: 6px 10px;
+    font-size: 12px;
+    font-family: var(--font-sans);
+    text-align: left;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .add-menu button:hover {
+    background: var(--accent-subtle);
+    color: var(--accent-bright);
   }
 
   .node-tree {

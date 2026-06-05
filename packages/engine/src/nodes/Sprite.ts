@@ -25,4 +25,34 @@ export class Sprite extends Node2D {
     super(name)
     if (texture) this.texture = texture
   }
+
+  // ── Serialisation ──────────────────────────────────────────────────────
+  override toJSON(): any {
+    const json = super.toJSON()
+    json.properties = {
+      ...json.properties,
+      texture: this.texture,
+      width: this.width,
+      height: this.height,
+      opacity: this.opacity,
+      flipX: this.flipX,
+      flipY: this.flipY,
+      tint: this.tint,
+    }
+    return json
+  }
+
+  override fromJSON(data: any): this {
+    super.fromJSON(data)
+    if (data.properties) {
+      if (data.properties.texture !== undefined) this.texture = data.properties.texture
+      if (data.properties.width !== undefined) this.width = data.properties.width
+      if (data.properties.height !== undefined) this.height = data.properties.height
+      if (data.properties.opacity !== undefined) this.opacity = data.properties.opacity
+      if (data.properties.flipX !== undefined) this.flipX = data.properties.flipX
+      if (data.properties.flipY !== undefined) this.flipY = data.properties.flipY
+      if (data.properties.tint !== undefined) this.tint = data.properties.tint
+    }
+    return this
+  }
 }

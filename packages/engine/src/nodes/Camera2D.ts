@@ -59,4 +59,22 @@ export class Camera2D extends Node2D {
       tx, ty, 1,
     ])
   }
+
+  // ── Serialisation ──────────────────────────────────────────────────────
+  override toJSON(): any {
+    const json = super.toJSON()
+    json.properties = {
+      ...json.properties,
+      zoom: this.zoom,
+    }
+    return json
+  }
+
+  override fromJSON(data: any): this {
+    super.fromJSON(data)
+    if (data.properties) {
+      if (data.properties.zoom !== undefined) this.zoom = data.properties.zoom
+    }
+    return this
+  }
 }

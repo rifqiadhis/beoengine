@@ -89,6 +89,70 @@
     startEditorLoop()
     engineConsole.info('Game stopped')
   }
+
+  // ── Editor Interaction (Dragging) ──────────────────────────────────────
+  import { selection } from '../stores/selection.svelte.ts'
+  import { history } from '../stores/history.svelte.ts'
+  import { Node2D } from 'beo'
+
+  let isDragging = false
+  let draggedNode: Node2D | null = null
+  let lastMouse = { x: 0, y: 0 }
+  let snapshotTaken = false
+
+  function getSelectedNode2D(): Node2D | null {
+    if (!editorScene || !selection.selectedNodeId) return null
+    const node = editorScene.findById(selection.selectedNodeId)
+    return node instanceof Node2D ? node : null
+  }
+
+  function onMouseDown(e: MouseEvent) {
+    if (viewport.playState === 'playing') return
+    if (e.button !== 0) return
+
+    const node = getSelectedNode2D()
+    if (!node) return
+
+    isDragging = true
+    draggedNode = node
+    lastMouse = { x: e.clientX, y: e.clientY }
+    snapshotTaken = false
+  }
+
+  function onMouseMove(e: MouseEvent) {
+    if (!isDragging || !draggedNode || !engine) return
+
+    if (!snapshotTaken && editorScene) {
+      history.takeSnapshot(editorScene)
+      snapshotTaken = true
+    }
+
+    const cam = engine.camera
+    const zoom = cam ? cam.zoom : 1
+
+    const dx = e.clientX - lastMouse.x
+    const dy = e.clientY - lastMouse.y
+
+    if (viewport.gizmoMode === 'move') {
+      draggedNode.x += dx / zoom
+      draggedNode.y += dy / zoom
+      sceneStore.markDirty()
+    } else if (viewport.gizmoMode === 'scale') {
+      draggedNode.scaleX += dx * 0.01
+      draggedNode.scaleY -= dy * 0.01 // drag up to scale up
+      sceneStore.markDirty()
+    } else if (viewport.gizmoMode === 'rotate') {
+      draggedNode.rotation += dx * 0.01
+      sceneStore.markDirty()
+    }
+
+    lastMouse = { x: e.clientX, y: e.clientY }
+  }
+
+  function onMouseUp() {
+    isDragging = false
+    draggedNode = null
+  }
 </script>
 
 <div class="viewport-panel">
@@ -148,7 +212,14 @@
     </div>
   </div>
 
-  <div class="canvas-wrapper">
+  <div
+    class="canvas-wrapper"
+    onmousedown={onMouseDown}
+    onmousemove={onMouseMove}
+    onmouseup={onMouseUp}
+    onmouseleave={onMouseUp}
+    role="application"
+  >
     <canvas bind:this={canvasEl} id="viewport-canvas"></canvas>
 
     {#if viewport.playState === 'playing'}

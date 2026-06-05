@@ -10,7 +10,7 @@ function nextId(): string {
 }
 
 export class Node {
-  readonly id: string
+  id: string
   name: string
   children: Node[] = []
   parent: Node | null = null
@@ -79,8 +79,28 @@ export class Node {
     return undefined
   }
 
-  // ── Serialisation helper ───────────────────────────────────────────────
+  // ── Serialisation ──────────────────────────────────────────────────────
   get type(): string {
     return this.constructor.name
+  }
+
+  /** Convert to JSON-serializable object */
+  toJSON(): any {
+    return {
+      id: this.id,
+      type: this.type,
+      name: this.name,
+      active: this.active,
+      properties: {},
+      children: this.children.map(c => c.toJSON()),
+    }
+  }
+
+  /** Restore properties from JSON data */
+  fromJSON(data: any): this {
+    if (data.id !== undefined) this.id = data.id
+    if (data.name !== undefined) this.name = data.name
+    if (data.active !== undefined) this.active = data.active
+    return this
   }
 }

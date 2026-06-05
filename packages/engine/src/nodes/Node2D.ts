@@ -82,4 +82,32 @@ export class Node2D extends Node {
     this.y += dy
     return this
   }
+
+  // ── Serialisation ──────────────────────────────────────────────────────
+  override toJSON(): any {
+    const json = super.toJSON()
+    json.properties = {
+      ...json.properties,
+      x: this.x,
+      y: this.y,
+      rotation: this.rotation,
+      scaleX: this.scaleX,
+      scaleY: this.scaleY,
+      zIndex: this.zIndex,
+    }
+    return json
+  }
+
+  override fromJSON(data: any): this {
+    super.fromJSON(data)
+    if (data.properties) {
+      if (data.properties.x !== undefined) this.x = data.properties.x
+      if (data.properties.y !== undefined) this.y = data.properties.y
+      if (data.properties.rotation !== undefined) this.rotation = data.properties.rotation
+      if (data.properties.scaleX !== undefined) this.scaleX = data.properties.scaleX
+      if (data.properties.scaleY !== undefined) this.scaleY = data.properties.scaleY
+      if (data.properties.zIndex !== undefined) this.zIndex = data.properties.zIndex
+    }
+    return this
+  }
 }

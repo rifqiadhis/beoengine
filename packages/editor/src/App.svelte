@@ -6,7 +6,10 @@
   import AssetBrowser  from './panels/AssetBrowser.svelte'
   import ConsolePanel  from './panels/Console.svelte'
   import { project }   from './stores/project.svelte.ts'
-  import { pickProjectFolder } from './fs/filesystem.ts'
+  import { scene }     from './stores/scene.svelte.ts'
+  import { history }   from './stores/history.svelte.ts'
+  import { SceneSerializer } from 'beo'
+  import { pickProjectFolder, writeTextFile } from './fs/filesystem.ts'
   import {
     Diamond,
     FilePlus,
@@ -31,7 +34,29 @@
     const handle = await pickProjectFolder()
     if (handle) await project.openProject(handle)
   }
+
+  async function saveScene() {
+    if (!project.folderHandle || !scene.activeScene) return
+    const json = SceneSerializer.serialize(scene.activeScene)
+    // For now, save to 'scenes/main.beo'
+    await writeTextFile(project.folderHandle, `scenes/${scene.activeScene.name}.beo`, json)
+    scene.markSaved()
+  }
+
+  function handleKeydown(e: KeyboardEvent) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+      e.preventDefault()
+      saveScene()
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+      e.preventDefault()
+      if (e.shiftKey) history.redo()
+      else history.undo()
+    }
+  }
 </script>
+
+<svelte:window onkeydown={handleKeydown} />
 
 <svelte:head>
   <title>BeoEngine{project.projectName ? ` — ${project.projectName}` : ''}</title>
@@ -58,7 +83,7 @@
             <FolderOpen size={13} /> Open Project…
           </button>
           <hr class="dropdown-sep" />
-          <button class="dropdown-item" role="menuitem" disabled>
+          <button class="dropdown-item" role="menuitem" disabled={!project.folderHandle || !scene.activeScene} onclick={saveScene}>
             <Save size={13} /> Save Scene
           </button>
           <button class="dropdown-item" role="menuitem" disabled>
@@ -70,10 +95,10 @@
       <div class="menu-group" role="none">
         <button class="menu-item" role="menuitem">Edit</button>
         <div class="dropdown" role="menu">
-          <button class="dropdown-item" role="menuitem" disabled>
+          <button class="dropdown-item" role="menuitem" disabled={!history.canUndo} onclick={() => history.undo()}>
             <Undo2 size={13} /> Undo
           </button>
-          <button class="dropdown-item" role="menuitem" disabled>
+          <button class="dropdown-item" role="menuitem" disabled={!history.canRedo} onclick={() => history.redo()}>
             <Redo2 size={13} /> Redo
           </button>
         </div>
