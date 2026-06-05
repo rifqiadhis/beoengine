@@ -112,6 +112,15 @@ export class Engine extends EventEmitter<EngineEvents> {
     this.renderer.setCamera(camera)
   }
 
+  // ── Asset Resolver ─────────────────────────────────────────────────────
+  /** 
+   * Provide a custom resolver to map virtual asset paths to actual URLs 
+   * (e.g., File System Access API Blob URLs).
+   */
+  setAssetResolver(resolver: (path: string) => Promise<string>): void {
+    this.renderer.setAssetResolver(resolver)
+  }
+
   // ── Game loop ──────────────────────────────────────────────────────────
   private _tick = (timestamp: number): void => {
     if (!this._running || this._paused) return

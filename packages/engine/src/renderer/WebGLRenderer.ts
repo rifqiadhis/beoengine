@@ -66,6 +66,10 @@ export class WebGLRenderer {
     this.activeCamera = camera
   }
 
+  setAssetResolver(resolver: (path: string) => Promise<string>): void {
+    this.textures.setResolver(resolver)
+  }
+
   // ── Render ─────────────────────────────────────────────────────────────
   render(scene: Scene): void {
     const gl = this.gl

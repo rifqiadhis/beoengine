@@ -13,9 +13,14 @@ export class TextureManager {
   private gl: WebGL2RenderingContext
   private cache: Map<string, TextureInfo> = new Map()
   private loading: Map<string, Promise<TextureInfo>> = new Map()
+  private resolver?: (path: string) => Promise<string>
 
   constructor(gl: WebGL2RenderingContext) {
     this.gl = gl
+  }
+
+  setResolver(resolver: (path: string) => Promise<string>) {
+    this.resolver = resolver
   }
 
   /**
@@ -28,20 +33,34 @@ export class TextureManager {
     const inFlight = this.loading.get(url)
     if (inFlight) return inFlight
 
-    const promise = new Promise<TextureInfo>((resolve, reject) => {
-      const img = new Image()
-      img.onload = () => {
-        const info = this._upload(img)
-        this.cache.set(url, info)
+    const promise = (async () => {
+      try {
+        const resolvedUrl = this.resolver ? await this.resolver(url) : url
+        
+        return new Promise<TextureInfo>((resolve, reject) => {
+          const img = new Image()
+          img.onload = () => {
+            const info = this._upload(img)
+            this.cache.set(url, info)
+            this.loading.delete(url)
+            
+            // Cleanup object URLs if created by resolver
+            if (resolvedUrl.startsWith('blob:')) {
+              URL.revokeObjectURL(resolvedUrl)
+            }
+            resolve(info)
+          }
+          img.onerror = () => {
+            this.loading.delete(url)
+            reject(new Error(`[BeoEngine] Failed to load texture: ${url}`))
+          }
+          img.src = resolvedUrl
+        })
+      } catch (err) {
         this.loading.delete(url)
-        resolve(info)
+        throw new Error(`[BeoEngine] Resolver failed for texture: ${url}`)
       }
-      img.onerror = () => {
-        this.loading.delete(url)
-        reject(new Error(`[BeoEngine] Failed to load texture: ${url}`))
-      }
-      img.src = url
-    })
+    })()
 
     this.loading.set(url, promise)
     return promise

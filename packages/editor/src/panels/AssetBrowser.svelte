@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { project } from '../stores/project.svelte.ts'
-  import { pickProjectFolder } from '../fs/filesystem.ts'
-  import type { FSEntry } from '../fs/filesystem.ts'
+  import { project } from "../stores/project.svelte.ts";
+  import { pickProjectFolder, listDirectory } from "../fs/filesystem.ts";
+  import type { FSEntry } from "../fs/filesystem.ts";
   import {
     FolderOpen,
     Folder,
@@ -11,26 +11,41 @@
     FileAudio,
     FileCode,
     FileJson,
-  } from '@lucide/svelte'
+  } from "@lucide/svelte";
 
-  let entries = $state<FSEntry[]>([])
-  let currentPath = $state<string[]>([])
+  let entries = $state<FSEntry[]>([]);
+  let currentPath = $state<string[]>([]);
+
+  $effect(() => {
+    if (project.folderHandle) {
+      listDirectory(project.folderHandle, currentPath.join("/"))
+        .then((list) => {
+          entries = list;
+        })
+        .catch((e) => {
+          console.error("Failed to list directory", e);
+          entries = [];
+        });
+    } else {
+      entries = [];
+      currentPath = [];
+    }
+  });
 
   async function openFolder() {
-    const handle = await pickProjectFolder()
-    if (!handle) return
-    await project.openProject(handle)
-    entries = []
-    currentPath = []
+    const handle = await pickProjectFolder();
+    if (!handle) return;
+    await project.openProject(handle);
+    currentPath = [];
   }
 
   function getFileIcon(name: string) {
-    const ext = name.split('.').pop()?.toLowerCase() ?? ''
-    if (['png', 'jpg', 'jpeg', 'webp', 'svg'].includes(ext)) return FileImage
-    if (['mp3', 'ogg', 'wav'].includes(ext)) return FileAudio
-    if (['ts', 'js'].includes(ext)) return FileCode
-    if (['json', 'beo'].includes(ext)) return FileJson
-    return File
+    const ext = name.split(".").pop()?.toLowerCase() ?? "";
+    if (["png", "jpg", "jpeg", "webp", "svg"].includes(ext)) return FileImage;
+    if (["mp3", "ogg", "wav"].includes(ext)) return FileAudio;
+    if (["ts", "js"].includes(ext)) return FileCode;
+    if (["json", "beo"].includes(ext)) return FileJson;
+    return File;
   }
 </script>
 
@@ -56,12 +71,23 @@
       </div>
     {:else}
       <div class="breadcrumb">
-        <button class="crumb root" onclick={() => { currentPath = []; entries = [] }}>
+        <button
+          class="crumb root"
+          onclick={() => {
+            currentPath = [];
+            entries = [];
+          }}
+        >
           {project.projectName}
         </button>
         {#each currentPath as part, i}
           <ChevronRight size={10} class="crumb-sep" />
-          <button class="crumb" onclick={() => { currentPath = currentPath.slice(0, i + 1) }}>
+          <button
+            class="crumb"
+            onclick={() => {
+              currentPath = currentPath.slice(0, i + 1);
+            }}
+          >
             {part}
           </button>
         {/each}
@@ -72,9 +98,22 @@
       {:else}
         <div class="entry-list">
           {#each entries as entry}
-            {@const EntryIcon = entry.kind === 'directory' ? Folder : getFileIcon(entry.name)}
-            <div class="entry" role="button" tabindex="0">
-              <span class="entry-icon" class:dir={entry.kind === 'directory'}>
+            {@const EntryIcon =
+              entry.kind === "directory" ? Folder : getFileIcon(entry.name)}
+            <div
+              class="entry"
+              role="button"
+              tabindex="0"
+              onclick={() => {
+                if (entry.kind === "directory")
+                  currentPath = [...currentPath, entry.name];
+              }}
+              onkeydown={(e) => {
+                if (e.key === "Enter" && entry.kind === "directory")
+                  currentPath = [...currentPath, entry.name];
+              }}
+            >
+              <span class="entry-icon" class:dir={entry.kind === "directory"}>
                 <EntryIcon size={14} />
               </span>
               <span class="entry-name">{entry.name}</span>

@@ -4,6 +4,7 @@
   import { viewport } from '../stores/viewport.svelte.ts'
   import { scene as sceneStore } from '../stores/scene.svelte.ts'
   import { engineConsole } from '../stores/console.svelte.ts'
+  import { project } from '../stores/project.svelte.ts'
   import {
     Play,
     Pause,
@@ -21,6 +22,24 @@
   onMount(() => {
     try {
       engine = new Engine({ canvas: canvasEl })
+
+      // Set up asset resolver to read from local File System Access API
+      engine.setAssetResolver(async (path: string) => {
+        if (!project.folderHandle) return path
+        try {
+          const parts = path.split('/')
+          let dir = project.folderHandle
+          for (let i = 0; i < parts.length - 1; i++) {
+            dir = await dir.getDirectoryHandle(parts[i])
+          }
+          const fileHandle = await dir.getFileHandle(parts[parts.length - 1])
+          const file = await fileHandle.getFile()
+          return URL.createObjectURL(file)
+        } catch (e) {
+          engineConsole.warn(`Could not resolve local asset: ${path}`)
+          return path
+        }
+      })
 
       editorScene = new Scene('Default Scene')
       editorScene.background = '#12121e'
