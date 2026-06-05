@@ -84,3 +84,23 @@ export async function listDirectory(
     return a.name.localeCompare(b.name)
   })
 }
+
+export async function listAllFiles(
+  dir: FileSystemDirectoryHandle,
+  currentPath: string = ''
+): Promise<string[]> {
+  let results: string[] = []
+  for await (const [name, handle] of dir.entries()) {
+    // Ignore common hidden/node_modules folders
+    if (name.startsWith('.') || name === 'node_modules') continue
+    
+    const path = currentPath ? `${currentPath}/${name}` : name
+    if (handle.kind === 'file') {
+      results.push(path)
+    } else if (handle.kind === 'directory') {
+      const sub = await listAllFiles(handle, path)
+      results.push(...sub)
+    }
+  }
+  return results
+}

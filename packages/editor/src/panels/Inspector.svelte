@@ -37,6 +37,12 @@
     const n = parseFloat(v)
     return isNaN(n) ? 0 : n
   }
+  import { project } from '../stores/project.svelte.ts'
+
+  const IMAGE_EXTS = ['.png', '.jpg', '.jpeg', '.webp', '.svg']
+  let availableTextures = $derived(
+    project.assets.filter(a => IMAGE_EXTS.some(ext => a.toLowerCase().endsWith(ext)))
+  )
 </script>
 
 <aside class="inspector-panel">
@@ -162,13 +168,17 @@
 
           <label class="prop-row">
             <span class="prop-label">Texture</span>
-            <input
+            <select
               class="prop-input"
-              type="text"
-              placeholder="assets/textures/..."
               value={selectedNode.texture}
-              onfocus={handleFocus} oninput={(e) => update('texture', (e.target as HTMLInputElement).value)}
-            />
+              onfocus={handleFocus}
+              onchange={(e) => update('texture', (e.target as HTMLSelectElement).value)}
+            >
+              <option value="">(None)</option>
+              {#each availableTextures as tex}
+                <option value={tex}>{tex}</option>
+              {/each}
+            </select>
           </label>
 
           <label class="prop-row">

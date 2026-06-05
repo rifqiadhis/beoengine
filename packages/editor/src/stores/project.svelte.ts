@@ -3,6 +3,7 @@
  */
 import type { RecentProject } from '../types.ts'
 import { loadRecentProjects, saveRecentProject } from '../idb/storage.ts'
+import { listAllFiles } from '../fs/filesystem.ts'
 
 export type { RecentProject }
 
@@ -10,12 +11,14 @@ function createProjectStore() {
   let projectName = $state<string>('')
   let folderHandle = $state<FileSystemDirectoryHandle | null>(null)
   let recentProjects = $state<RecentProject[]>([])
+  let assets = $state<string[]>([])
   let isLoading = $state(false)
 
   return {
     get projectName() { return projectName },
     get folderHandle() { return folderHandle },
     get recentProjects() { return recentProjects },
+    get assets() { return assets },
     get isLoading() { return isLoading },
 
     async loadRecent() {
@@ -45,11 +48,19 @@ function createProjectStore() {
       }
       await saveRecentProject(recent)
       recentProjects = await loadRecentProjects()
+
+      try {
+        assets = await listAllFiles(handle)
+      } catch (e) {
+        console.error('Failed to list assets', e)
+        assets = []
+      }
     },
 
     closeProject() {
       folderHandle = null
       projectName = ''
+      assets = []
     },
   }
 }
