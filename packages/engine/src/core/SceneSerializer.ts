@@ -3,6 +3,7 @@ import { Node } from './Node.ts'
 import { Node2D } from '../nodes/Node2D.ts'
 import { Sprite } from '../nodes/Sprite.ts'
 import { Camera2D } from '../nodes/Camera2D.ts'
+import { CollisionBody } from '../nodes/CollisionBody.ts'
 
 /**
  * Registry of node types available for deserialization.
@@ -12,6 +13,7 @@ const NodeRegistry: Record<string, new () => Node> = {
   Node2D,
   Sprite,
   Camera2D,
+  CollisionBody,
 }
 
 /**

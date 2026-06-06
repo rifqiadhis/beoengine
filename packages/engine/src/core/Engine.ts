@@ -106,6 +106,9 @@ export class Engine extends EventEmitter<EngineEvents> {
 
   get isRunning(): boolean { return this._running && !this._paused }
 
+  get debugDraw(): boolean { return this.renderer.debugDraw }
+  set debugDraw(val: boolean) { this.renderer.debugDraw = val }
+
   // ── Camera helper ──────────────────────────────────────────────────────
   /** Set the active camera for rendering */
   setCamera(camera: Camera2D): void {

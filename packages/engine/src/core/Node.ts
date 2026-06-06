@@ -33,6 +33,9 @@ export class Node {
   /** Called every frame while the scene is running */
   onUpdate(_delta: number): void {}
 
+  /** Called when this node or its children collide with another body */
+  onCollide(_other: any): void {}
+
   /** Called when the node is removed from the scene */
   onDestroy(): void {}
 

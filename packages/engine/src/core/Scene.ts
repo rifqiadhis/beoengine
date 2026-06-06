@@ -5,6 +5,7 @@
 
 import { Node } from './Node.ts'
 import { EventEmitter } from './EventEmitter.ts'
+import { PhysicsWorld } from '../physics/PhysicsWorld.ts'
 
 type SceneEvents = {
   nodeAdded: Node
@@ -14,6 +15,7 @@ type SceneEvents = {
 export class Scene extends EventEmitter<SceneEvents> {
   name: string
   background: string = '#1a1a2e'
+  readonly physics: PhysicsWorld = new PhysicsWorld()
 
   /** Top-level nodes (roots of the scene graph) */
   readonly roots: Node[] = []
@@ -67,6 +69,8 @@ export class Scene extends EventEmitter<SceneEvents> {
         })
       }
     }
+    // Resolve collisions after manual movement
+    this.physics.step(this)
   }
 
   // ── All nodes (flat list, depth-first) ─────────────────────────────────

@@ -7,10 +7,12 @@
 import { ShaderManager } from './ShaderManager.ts'
 import { TextureManager } from './TextureManager.ts'
 import { SpriteBatcher } from './SpriteBatcher.ts'
+import { DebugRenderer } from './DebugRenderer.ts'
 import type { Scene } from '../core/Scene.ts'
 import type { Node } from '../core/Node.ts'
 import { Sprite } from '../nodes/Sprite.ts'
 import { Camera2D } from '../nodes/Camera2D.ts'
+import { CollisionBody } from '../nodes/CollisionBody.ts'
 import { Node2D } from '../nodes/Node2D.ts'
 
 function hexToRgb(hex: string): [number, number, number] {
@@ -28,6 +30,9 @@ export class WebGLRenderer {
   readonly shaders: ShaderManager
   readonly textures: TextureManager
   private batcher: SpriteBatcher
+  private debugRenderer: DebugRenderer
+
+  public debugDraw = false
 
   private bgR = 0.1
   private bgG = 0.1
@@ -52,6 +57,9 @@ export class WebGLRenderer {
       this.batcher.fragSrc,
     )
     this.batcher.init(program)
+
+    this.debugRenderer = new DebugRenderer(gl)
+    this.debugRenderer.init(this.shaders)
   }
 
   // ── Config ─────────────────────────────────────────────────────────────
@@ -112,6 +120,16 @@ export class WebGLRenderer {
     sprites.sort((a, b) => a.zIndex - b.zIndex)
 
     this.batcher.draw(sprites, viewMatrix, canvas.width / dpr, canvas.height / dpr)
+
+    if (this.debugDraw) {
+      const bodies: CollisionBody[] = []
+      for (const node of scene.allNodes) {
+        if ((node as any).isCollisionBody && node.active) {
+          bodies.push(node as CollisionBody)
+        }
+      }
+      this.debugRenderer.drawBodies(bodies, viewMatrix, canvas.width / dpr, canvas.height / dpr)
+    }
   }
 
   private _identityView(w: number, h: number): Float32Array {
@@ -125,6 +143,7 @@ export class WebGLRenderer {
 
   dispose(): void {
     this.batcher.dispose()
+    this.debugRenderer.dispose()
     this.shaders.dispose()
     this.textures.dispose()
   }

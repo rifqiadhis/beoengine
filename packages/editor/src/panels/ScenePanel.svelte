@@ -2,7 +2,7 @@
   import { scene } from '../stores/scene.svelte.ts'
   import { selection } from '../stores/selection.svelte.ts'
   import { history } from '../stores/history.svelte.ts'
-  import { Node2D, Sprite, Camera2D, type Node } from 'beo'
+  import { Node2D, Sprite, Camera2D, CollisionBody, type Node } from 'beo'
   import {
     Plus,
     ChevronRight,
@@ -53,13 +53,14 @@
 
   let showAddMenu = $state(false)
 
-  function handleAddNode(type: 'Node2D' | 'Sprite' | 'Camera2D') {
+  function handleAddNode(type: 'Node2D' | 'Sprite' | 'Camera2D' | 'CollisionBody') {
     if (!scene.activeScene) return
     history.takeSnapshot(scene.activeScene)
 
     let newNode: Node
     if (type === 'Sprite') newNode = new Sprite('New Sprite')
     else if (type === 'Camera2D') newNode = new Camera2D('New Camera')
+    else if (type === 'CollisionBody') newNode = new CollisionBody('New CollisionBody')
     else newNode = new Node2D('New Node2D')
 
     const parentId = selection.selectedNodeId
@@ -115,6 +116,7 @@
           <button onclick={() => handleAddNode('Node2D')}><Box size={13} /> Node2D</button>
           <button onclick={() => handleAddNode('Sprite')}><Image size={13} /> Sprite</button>
           <button onclick={() => handleAddNode('Camera2D')}><Camera size={13} /> Camera2D</button>
+          <button onclick={() => handleAddNode('CollisionBody')}><SquareDashed size={13} /> CollisionBody</button>
         </div>
       {/if}
     </div>

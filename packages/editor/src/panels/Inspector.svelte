@@ -2,7 +2,7 @@
   import { scene } from '../stores/scene.svelte.ts'
   import { selection } from '../stores/selection.svelte.ts'
   import { history } from '../stores/history.svelte.ts'
-  import type { Node, Node2D, Sprite } from 'beo'
+  import type { Node, Node2D, Sprite, CollisionBody } from 'beo'
 
   // Get selected node reactively
   let selectedNode = $derived((() => {
@@ -18,6 +18,10 @@
 
   function isSprite(node: Node): node is Sprite {
     return 'texture' in node
+  }
+
+  function isCollisionBody(node: Node): node is CollisionBody {
+    return 'shape' in node
   }
 
   function handleFocus() {
@@ -250,6 +254,110 @@ export default class ${cleanName} extends ${baseClass} {
               step="0.05"
               value={selectedNode.opacity}
               onfocus={handleFocus} oninput={(e) => update('opacity', parseNum((e.target as HTMLInputElement).value))}
+            />
+          </label>
+        </section>
+      {/if}
+
+      <!-- CollisionBody properties -->
+      {#if isCollisionBody(selectedNode)}
+        <section class="prop-section">
+          <h3 class="section-title">Collision Body</h3>
+
+          <label class="prop-row">
+            <span class="prop-label">Shape</span>
+            <select
+              class="prop-input"
+              value={selectedNode.shape}
+              onfocus={handleFocus}
+              onchange={(e) => update('shape', (e.target as HTMLSelectElement).value)}
+            >
+              <option value="aabb">AABB (Rect)</option>
+              <option value="circle">Circle</option>
+            </select>
+          </label>
+
+          {#if selectedNode.shape === 'aabb'}
+            <div class="prop-row">
+              <span class="prop-label">Size</span>
+              <div class="vec2-inputs">
+                <label>
+                  <span class="axis-label">W</span>
+                  <input
+                    class="prop-input narrow"
+                    type="number"
+                    value={selectedNode.width}
+                    onfocus={handleFocus} oninput={(e) => update('width', parseNum((e.target as HTMLInputElement).value))}
+                  />
+                </label>
+                <label>
+                  <span class="axis-label">H</span>
+                  <input
+                    class="prop-input narrow"
+                    type="number"
+                    value={selectedNode.height}
+                    onfocus={handleFocus} oninput={(e) => update('height', parseNum((e.target as HTMLInputElement).value))}
+                  />
+                </label>
+              </div>
+            </div>
+          {:else}
+            <label class="prop-row">
+              <span class="prop-label">Radius</span>
+              <input
+                class="prop-input"
+                type="number"
+                value={selectedNode.radius}
+                onfocus={handleFocus} oninput={(e) => update('radius', parseNum((e.target as HTMLInputElement).value))}
+              />
+            </label>
+          {/if}
+
+          <div class="prop-row">
+            <span class="prop-label">Offset</span>
+            <div class="vec2-inputs">
+              <label>
+                <span class="axis-label">X</span>
+                <input
+                  class="prop-input narrow"
+                  type="number"
+                  value={selectedNode.offsetX}
+                  onfocus={handleFocus} oninput={(e) => update('offsetX', parseNum((e.target as HTMLInputElement).value))}
+                />
+              </label>
+              <label>
+                <span class="axis-label">Y</span>
+                <input
+                  class="prop-input narrow"
+                  type="number"
+                  value={selectedNode.offsetY}
+                  onfocus={handleFocus} oninput={(e) => update('offsetY', parseNum((e.target as HTMLInputElement).value))}
+                />
+              </label>
+            </div>
+          </div>
+
+          <label class="prop-row">
+            <span class="prop-label">Layer</span>
+            <input
+              class="prop-input"
+              type="number"
+              min="1"
+              max="255"
+              value={selectedNode.layer}
+              onfocus={handleFocus} oninput={(e) => update('layer', parseNum((e.target as HTMLInputElement).value))}
+            />
+          </label>
+
+          <label class="prop-row">
+            <span class="prop-label">Mask</span>
+            <input
+              class="prop-input"
+              type="number"
+              min="1"
+              max="255"
+              value={selectedNode.mask}
+              onfocus={handleFocus} oninput={(e) => update('mask', parseNum((e.target as HTMLInputElement).value))}
             />
           </label>
         </section>

@@ -17,6 +17,10 @@ export { SceneSerializer, ScriptRegistry } from './core/SceneSerializer.ts'
 export { Node2D }         from './nodes/Node2D.ts'
 export { Sprite }         from './nodes/Sprite.ts'
 export { Camera2D }       from './nodes/Camera2D.ts'
+export { CollisionBody }  from './nodes/CollisionBody.ts'
+
+// Physics
+export { PhysicsWorld }   from './physics/PhysicsWorld.ts'
 
 // Renderer
 export { WebGLRenderer }  from './renderer/WebGLRenderer.ts'

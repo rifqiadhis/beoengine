@@ -75,6 +75,7 @@
   onMount(() => {
     try {
       engine = new Engine({ canvas: canvasEl })
+      engine.debugDraw = true // Enable debug rendering in editor
 
       // Set up asset resolver to read from local File System Access API
       engine.setAssetResolver(async (path: string) => {
