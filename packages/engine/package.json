@@ -9,6 +9,7 @@
   },
   "scripts": {
     "build": "tsc",
+    "build:runtime": "vite build --config vite.runtime.config.ts",
     "check": "tsc --noEmit"
   },
   "keywords": [],
@@ -16,6 +17,7 @@
   "license": "UNLICENSED",
   "packageManager": "pnpm@10.33.0",
   "devDependencies": {
-    "typescript": "~6.0.3"
+    "typescript": "~6.0.3",
+    "vite": "^8.0.12"
   }
 }

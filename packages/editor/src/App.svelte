@@ -10,6 +10,8 @@
   import { history }   from './stores/history.svelte.ts'
   import { SceneSerializer } from 'beo'
   import { pickProjectFolder, writeTextFile } from './fs/filesystem.ts'
+  import { exportProject } from './export/exporter.ts'
+  import { engineConsole } from './stores/console.svelte.ts'
   import {
     Diamond,
     FilePlus,
@@ -41,6 +43,26 @@
     // For now, save to 'scenes/main.beo'
     await writeTextFile(project.folderHandle, `scenes/${scene.activeScene.name}.beo`, json)
     scene.markSaved()
+  }
+
+  let exporting = $state(false)
+
+  async function exportGame() {
+    if (!project.folderHandle || !scene.activeScene) return
+    if (exporting) return
+    exporting = true
+    try {
+      await exportProject({
+        scene: scene.activeScene,
+        folderHandle: project.folderHandle,
+        projectName: project.projectName || 'my-game',
+      })
+    } catch (err) {
+      engineConsole.error(`Export failed: ${err}`)
+      alert(`Export failed: ${err}`)
+    } finally {
+      exporting = false
+    }
   }
 
   function handleKeydown(e: KeyboardEvent) {
@@ -86,8 +108,8 @@
           <button class="dropdown-item" role="menuitem" disabled={!project.folderHandle || !scene.activeScene} onclick={saveScene}>
             <Save size={13} /> Save Scene
           </button>
-          <button class="dropdown-item" role="menuitem" disabled>
-            <Download size={13} /> Export…
+          <button class="dropdown-item" role="menuitem" disabled={!project.folderHandle || !scene.activeScene || exporting} onclick={exportGame}>
+            <Download size={13} /> {exporting ? 'Exporting…' : 'Export…'}
           </button>
         </div>
       </div>

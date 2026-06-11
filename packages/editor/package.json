@@ -12,6 +12,7 @@
   "dependencies": {
     "@lucide/svelte": "^1.17.0",
     "beo": "workspace:*",
+    "jszip": "^3.10.1",
     "sucrase": "^3.35.1"
   },
   "devDependencies": {
