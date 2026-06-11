@@ -2,7 +2,7 @@
  * Editor store — project state
  */
 import type { RecentProject } from '../types.ts'
-import { loadRecentProjects, saveRecentProject } from '../idb/storage.ts'
+import { loadRecentProjects, saveRecentProject, getEditorState, setEditorState } from '../idb/storage.ts'
 import { listAllFiles } from '../fs/filesystem.ts'
 
 export type { RecentProject }
@@ -25,12 +25,25 @@ function createProjectStore() {
       isLoading = true
       try {
         recentProjects = await loadRecentProjects()
+        // Try to restore last opened project
+        const lastHandle = await getEditorState<FileSystemDirectoryHandle>('lastFolderHandle')
+        if (lastHandle) {
+          try {
+            // Re-request permission (browser requires this after refresh)
+            const perm = await lastHandle.requestPermission({ mode: 'readwrite' })
+            if (perm === 'granted') {
+              await this.openProject(lastHandle, true)
+            }
+          } catch {
+            // User denied or handle expired — that's fine
+          }
+        }
       } finally {
         isLoading = false
       }
     },
 
-    async openProject(handle: FileSystemDirectoryHandle) {
+    async openProject(handle: FileSystemDirectoryHandle, isRestore = false) {
       folderHandle = handle
       // Try to read project.beo for the name
       try {
@@ -48,6 +61,9 @@ function createProjectStore() {
       }
       await saveRecentProject(recent)
       recentProjects = await loadRecentProjects()
+
+      // Persist handle for tab refresh restore
+      await setEditorState('lastFolderHandle', handle)
 
       await this.reloadAssets()
     },

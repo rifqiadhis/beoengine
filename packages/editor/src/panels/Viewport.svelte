@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte'
-  import { Engine, Scene, Camera2D, Sprite } from 'beo'
+  import { Engine, Scene, Camera2D, Sprite, SceneSerializer } from 'beo'
+  import { getEditorState, setEditorState } from '../idb/storage.ts'
   import { viewport } from '../stores/viewport.svelte.ts'
   import { scene as sceneStore } from '../stores/scene.svelte.ts'
   import { ProjectWatcher } from '../fs/watcher.ts'
@@ -55,6 +56,15 @@
     }
   })
 
+  // Auto-save scene JSON to IndexedDB whenever it changes
+  $effect(() => {
+    const v = sceneStore.version // react to version changes
+    if (editorScene && v > 0) {
+      const json = SceneSerializer.serialize(editorScene)
+      setEditorState('lastSceneJSON', json)
+    }
+  })
+
   async function handleHotReload(path: string, type: 'script' | 'texture') {
     engineConsole.info(`[Hot Reload] Detected change in ${path}`)
     if (type === 'script') {
@@ -72,7 +82,7 @@
     }
   }
 
-  onMount(() => {
+  onMount(async () => {
     try {
       engine = new Engine({ canvas: canvasEl })
       engine.debugDraw = true // Enable debug rendering in editor
@@ -95,14 +105,32 @@
         }
       })
 
-      editorScene = new Scene('Default Scene')
-      editorScene.background = '#12121e'
+      // Try to restore saved scene from IndexedDB, otherwise create a default
+      let restoredScene: Scene | null = null
+      try {
+        const savedJSON = await getEditorState<string>('lastSceneJSON')
+        if (savedJSON && project.folderHandle) {
+          restoredScene = SceneSerializer.deserialize(savedJSON)
+          engineConsole.info('Restored scene from previous session')
+        }
+      } catch {
+        // Failed to restore — will create a fresh scene
+      }
 
-      const cam = new Camera2D('MainCamera')
-      cam.x = 0
-      cam.y = 0
-      editorScene.addNode(cam)
-      engine.setCamera(cam)
+      if (restoredScene) {
+        editorScene = restoredScene
+        // Find and set camera
+        const cam = editorScene.allNodes.find(n => n instanceof Camera2D) as Camera2D | undefined
+        if (cam) engine.setCamera(cam)
+      } else {
+        editorScene = new Scene('Default Scene')
+        editorScene.background = '#12121e'
+        const cam = new Camera2D('MainCamera')
+        cam.x = 0
+        cam.y = 0
+        editorScene.addNode(cam)
+        engine.setCamera(cam)
+      }
 
       sceneStore.setScene(editorScene)
       engineConsole.info('BeoEngine initialized — WebGL 2 renderer ready')
@@ -136,7 +164,7 @@
   }
 
   import { compileTS } from '../scripting/transpiler.ts'
-  import { SceneSerializer, ScriptRegistry } from 'beo'
+  import { ScriptRegistry } from 'beo'
 
   async function fetchLocalFileContent(path: string): Promise<string> {
     if (!project.folderHandle) return ''
