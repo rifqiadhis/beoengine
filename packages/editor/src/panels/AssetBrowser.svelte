@@ -1,5 +1,6 @@
 <script lang="ts">
   import { project } from "../stores/project.svelte.ts";
+  import { sceneOpener } from "../stores/sceneOpener.svelte.ts";
   import { pickProjectFolder, listDirectory } from "../fs/filesystem.ts";
   import type { FSEntry } from "../fs/filesystem.ts";
   import {
@@ -11,6 +12,7 @@
     FileAudio,
     FileCode,
     FileJson,
+    ExternalLink,
   } from "@lucide/svelte";
 
   let entries = $state<FSEntry[]>([]);
@@ -46,6 +48,18 @@
     if (["ts", "js"].includes(ext)) return FileCode;
     if (["json", "beo"].includes(ext)) return FileJson;
     return File;
+  }
+
+  function isBeoFile(name: string) {
+    return name.toLowerCase().endsWith('.beo')
+  }
+
+  function handleFileClick(entry: FSEntry) {
+    if (entry.kind !== 'file') return
+    if (isBeoFile(entry.name)) {
+      const path = [...currentPath, entry.name].join('/')
+      sceneOpener.requestOpen(path)
+    }
   }
 </script>
 
@@ -102,21 +116,31 @@
               entry.kind === "directory" ? Folder : getFileIcon(entry.name)}
             <div
               class="entry"
+              class:beo-file={entry.kind === 'file' && isBeoFile(entry.name)}
               role="button"
               tabindex="0"
+              title={isBeoFile(entry.name) ? 'Click to open scene' : undefined}
               onclick={() => {
-                if (entry.kind === "directory")
-                  currentPath = [...currentPath, entry.name];
+                if (entry.kind === 'directory') {
+                  currentPath = [...currentPath, entry.name]
+                } else {
+                  handleFileClick(entry)
+                }
               }}
               onkeydown={(e) => {
-                if (e.key === "Enter" && entry.kind === "directory")
-                  currentPath = [...currentPath, entry.name];
+                if (e.key === 'Enter') {
+                  if (entry.kind === 'directory') currentPath = [...currentPath, entry.name]
+                  else handleFileClick(entry)
+                }
               }}
             >
-              <span class="entry-icon" class:dir={entry.kind === "directory"}>
+              <span class="entry-icon" class:dir={entry.kind === 'directory'}>
                 <EntryIcon size={14} />
               </span>
               <span class="entry-name">{entry.name}</span>
+              {#if entry.kind === 'file' && isBeoFile(entry.name)}
+                <span class="open-hint"><ExternalLink size={10} /></span>
+              {/if}
             </div>
           {/each}
         </div>
@@ -278,5 +302,31 @@
     text-align: center;
     padding: 24px;
     margin: 0;
+  }
+
+  .entry.beo-file {
+    color: var(--accent-bright);
+  }
+
+  .entry.beo-file .entry-icon {
+    color: var(--accent);
+  }
+
+  .entry.beo-file:hover {
+    background: var(--accent-subtle);
+  }
+
+  .open-hint {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    color: var(--accent);
+    opacity: 0;
+    flex-shrink: 0;
+    transition: opacity 0.15s;
+  }
+
+  .entry:hover .open-hint {
+    opacity: 0.7;
   }
 </style>

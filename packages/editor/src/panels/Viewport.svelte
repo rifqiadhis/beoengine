@@ -4,9 +4,11 @@
   import { getEditorState, setEditorState } from '../idb/storage.ts'
   import { viewport } from '../stores/viewport.svelte.ts'
   import { scene as sceneStore } from '../stores/scene.svelte.ts'
+  import { sceneOpener } from '../stores/sceneOpener.svelte.ts'
   import { ProjectWatcher } from '../fs/watcher.ts'
   import { engineConsole } from '../stores/console.svelte.ts'
   import { project } from '../stores/project.svelte.ts'
+  import { readTextFile } from '../fs/filesystem.ts'
   import {
     Play,
     Pause,
@@ -63,6 +65,32 @@
       const json = SceneSerializer.serialize(editorScene)
       setEditorState('lastSceneJSON', json)
     }
+  })
+
+  // Watch for scene open requests from the Asset Browser
+  $effect(() => {
+    const path = sceneOpener.pendingPath
+    if (!path || !project.folderHandle || !engine) return
+    sceneOpener.clear()
+
+    ;(async () => {
+      try {
+        const json = await readTextFile(project.folderHandle!, path)
+        const newScene = SceneSerializer.deserialize(json)
+        editorScene = newScene
+
+        // Re-bind camera
+        const cam = editorScene.allNodes.find(n => n instanceof Camera2D) as Camera2D | undefined
+        if (cam) engine!.setCamera(cam)
+
+        sceneStore.setScene(editorScene)
+        // Also persist as the current session scene
+        await setEditorState('lastSceneJSON', json)
+        engineConsole.info(`[Scene] Opened: ${path}`)
+      } catch (err) {
+        engineConsole.error(`Failed to open scene "${path}": ${err}`)
+      }
+    })()
   })
 
   async function handleHotReload(path: string, type: 'script' | 'texture') {
