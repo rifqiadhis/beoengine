@@ -40,10 +40,11 @@
   --input-bg:        #0d0d1c;
 
   /* Layout */
-  --menubar-h:       36px;
-  --scene-panel-w:   220px;
-  --inspector-w:     240px;
-  --bottom-panel-h:  180px;
+  --menubar-h:         36px;
+  --scene-panel-w:     220px;
+  --inspector-w:       240px;
+  --bottom-panel-h:    180px;
+  --asset-browser-w:   260px;
 }
 
 /* ── Reset ──────────────────────────────────────────────────────────────── */

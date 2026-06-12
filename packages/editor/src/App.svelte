@@ -5,6 +5,7 @@
   import Inspector     from './panels/Inspector.svelte'
   import AssetBrowser  from './panels/AssetBrowser.svelte'
   import ConsolePanel  from './panels/Console.svelte'
+  import Splitter      from './lib/Splitter.svelte'
   import { project }   from './stores/project.svelte.ts'
   import { scene }     from './stores/scene.svelte.ts'
   import { history }   from './stores/history.svelte.ts'
@@ -21,7 +22,23 @@
     Undo2,
     Redo2,
     HelpCircle,
+    LayoutPanelLeft,
+    RotateCcw,
   } from '@lucide/svelte'
+
+  const LAYOUT_VARS: Record<string, string> = {
+    '--scene-panel-w':   '220px',
+    '--inspector-w':     '240px',
+    '--bottom-panel-h':  '180px',
+    '--asset-browser-w': '260px',
+  }
+
+  function resetLayout() {
+    for (const [varName, defaultVal] of Object.entries(LAYOUT_VARS)) {
+      document.documentElement.style.setProperty(varName, defaultVal)
+      localStorage.removeItem(`beo-layout:${varName}`)
+    }
+  }
 
   onMount(async () => {
     await project.loadRecent()
@@ -141,6 +158,15 @@
       </div>
 
       <div class="menu-group" role="none">
+        <button class="menu-item" role="menuitem">View</button>
+        <div class="dropdown" role="menu">
+          <button class="dropdown-item" role="menuitem" onclick={resetLayout}>
+            <RotateCcw size={13} /> Reset Layout
+          </button>
+        </div>
+      </div>
+
+      <div class="menu-group" role="none">
         <button class="menu-item" role="menuitem">Help</button>
         <div class="dropdown" role="menu">
           <button class="dropdown-item" role="menuitem">
@@ -170,16 +196,22 @@
       <ScenePanel />
     </div>
 
+    <Splitter direction="horizontal" cssVar="--scene-panel-w" min={150} max={500} />
+
     <!-- Centre: Viewport + Bottom panels -->
     <div class="col-centre">
       <div class="row-top">
         <Viewport />
       </div>
+      <Splitter direction="vertical" cssVar="--bottom-panel-h" min={80} max={600} invert />
       <div class="row-bottom">
         <AssetBrowser />
+        <Splitter direction="horizontal" cssVar="--asset-browser-w" min={120} max={900} />
         <ConsolePanel />
       </div>
     </div>
+
+    <Splitter direction="horizontal" cssVar="--inspector-w" min={180} max={600} invert />
 
     <!-- Right: Inspector -->
     <div class="col-right">
@@ -345,15 +377,24 @@
   /* ── Workspace layout ────────────────────────────────────────────── */
   .workspace {
     flex: 1;
-    display: grid;
-    grid-template-columns: var(--scene-panel-w) 1fr var(--inspector-w);
-    grid-template-rows: 1fr;
+    display: flex;
+    flex-direction: row;
     min-height: 0;
     overflow: hidden;
   }
 
-  .col-left,
+  .col-left {
+    width: var(--scene-panel-w);
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+
   .col-right {
+    width: var(--inspector-w);
+    flex-shrink: 0;
     display: flex;
     flex-direction: column;
     min-height: 0;
@@ -361,9 +402,11 @@
   }
 
   .col-centre {
+    flex: 1;
     display: flex;
     flex-direction: column;
     min-height: 0;
+    min-width: 0;
     overflow: hidden;
   }
 
@@ -375,12 +418,22 @@
   }
 
   .row-bottom {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+    display: flex;
+    flex-direction: row;
     height: var(--bottom-panel-h);
     flex-shrink: 0;
     overflow: hidden;
-    border-top: 1px solid var(--border);
+  }
+
+  /* Asset Browser takes a fixed width, Console takes the rest */
+  .row-bottom :global(.asset-browser) {
+    width: var(--asset-browser-w);
+    flex-shrink: 0;
+  }
+
+  .row-bottom :global(.console-panel) {
+    flex: 1;
+    min-width: 0;
   }
 
   .col-left :global(.scene-panel),
