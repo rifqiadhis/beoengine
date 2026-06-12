@@ -189,37 +189,43 @@
   </div>
 
   <!-- ── Main workspace ─────────────────────────────────────────── -->
-  <div class="workspace">
-
-    <!-- Left: Scene Panel -->
-    <div class="col-left">
-      <ScenePanel />
+  {#if project.isLoading}
+    <div class="workspace-loading">
+      <div class="spinner"></div>
+      Loading project...
     </div>
+  {:else}
+    <div class="workspace">
 
-    <Splitter direction="horizontal" cssVar="--scene-panel-w" min={150} max={500} />
-
-    <!-- Centre: Viewport + Bottom panels -->
-    <div class="col-centre">
-      <div class="row-top">
-        <Viewport />
+      <!-- Left: Scene Panel -->
+      <div class="col-left">
+        <ScenePanel />
       </div>
-      <Splitter direction="vertical" cssVar="--bottom-panel-h" min={80} max={600} invert />
-      <div class="row-bottom">
-        <AssetBrowser />
-        <Splitter direction="horizontal" cssVar="--asset-browser-w" min={120} max={900} />
-        <ConsolePanel />
+
+      <Splitter direction="horizontal" cssVar="--scene-panel-w" min={150} max={500} />
+
+      <!-- Centre: Viewport + Bottom panels -->
+      <div class="col-centre">
+        <div class="row-top">
+          <Viewport />
+        </div>
+        <Splitter direction="vertical" cssVar="--bottom-panel-h" min={80} max={600} invert />
+        <div class="row-bottom">
+          <AssetBrowser />
+          <Splitter direction="horizontal" cssVar="--asset-browser-w" min={120} max={900} />
+          <ConsolePanel />
+        </div>
       </div>
+
+      <Splitter direction="horizontal" cssVar="--inspector-w" min={180} max={600} invert />
+
+      <!-- Right: Inspector -->
+      <div class="col-right">
+        <Inspector />
+      </div>
+
     </div>
-
-    <Splitter direction="horizontal" cssVar="--inspector-w" min={180} max={600} invert />
-
-    <!-- Right: Inspector -->
-    <div class="col-right">
-      <Inspector />
-    </div>
-
-  </div>
-
+  {/if}
 </div>
 
 <style>
@@ -381,6 +387,30 @@
     flex-direction: row;
     min-height: 0;
     overflow: hidden;
+  }
+
+  .workspace-loading {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    color: var(--text-muted);
+    font-size: 14px;
+  }
+
+  .spinner {
+    width: 24px;
+    height: 24px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
   }
 
   .col-left {

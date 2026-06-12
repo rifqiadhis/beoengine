@@ -64,12 +64,21 @@
     }
   })
 
-  // Auto-save scene JSON to IndexedDB whenever it changes
+  // Auto-save scene JSON and selection to IndexedDB whenever they change
   $effect(() => {
     const v = sceneStore.version // react to version changes
     if (editorScene && v > 0) {
       const json = SceneSerializer.serialize(editorScene)
       setEditorState('lastSceneJSON', json)
+    }
+  })
+
+  $effect(() => {
+    const selId = selection.selectedNodeId
+    if (selId) {
+      setEditorState('lastSelectedNodeId', selId)
+    } else {
+      setEditorState('lastSelectedNodeId', null)
     }
   })
 
@@ -84,6 +93,9 @@
         const json = await readTextFile(project.folderHandle!, path)
         const newScene = SceneSerializer.deserialize(json)
         editorScene = newScene
+
+        // Bind new scene to engine
+        engine!.loadScene(editorScene)
 
         // Re-bind camera
         const cam = editorScene.allNodes.find(n => n instanceof Camera2D) as Camera2D | undefined
@@ -168,6 +180,15 @@
 
       sceneStore.setScene(editorScene)
       engineConsole.info('BeoEngine initialized — WebGL 2 renderer ready')
+
+      try {
+        const lastSelected = await getEditorState<string>('lastSelectedNodeId')
+        if (lastSelected && editorScene.findById(lastSelected)) {
+          selection.select(lastSelected)
+        }
+      } catch {
+        // ignore
+      }
 
       engine.start()
       engine.pause()
