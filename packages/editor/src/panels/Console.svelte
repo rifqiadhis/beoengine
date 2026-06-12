@@ -1,7 +1,9 @@
 <script lang="ts">
   import { engineConsole } from '../stores/console.svelte.ts'
   import type { LogEntry } from '../stores/console.svelte.ts'
-  import { Info, AlertTriangle, XCircle, Trash2 } from '@lucide/svelte'
+  import { Info, AlertTriangle, XCircle, Trash2, Copy } from '@lucide/svelte'
+  import ContextMenu from '../lib/ContextMenu.svelte'
+  import type { ContextMenuEntry } from '../lib/ContextMenu.svelte'
 
   let logListEl: HTMLElement
 
@@ -26,7 +28,41 @@
 
   let warnCount = $derived(engineConsole.logs.filter(l => l.level === 'warn').length)
   let errorCount = $derived(engineConsole.logs.filter(l => l.level === 'error').length)
+
+  // Context menu
+  let ctxVisible = $state(false)
+  let ctxX = $state(0)
+  let ctxY = $state(0)
+  let ctxItems = $state<ContextMenuEntry[]>([])
+
+  function onLogRightClick(e: MouseEvent, entry: LogEntry | null) {
+    e.preventDefault()
+    ctxX = e.clientX
+    ctxY = e.clientY
+    ctxItems = [
+      ...(entry ? [{
+        label: 'Copy Message',
+        icon: Copy,
+        action: () => navigator.clipboard.writeText(entry.message),
+      } as ContextMenuEntry] : []),
+      ...(entry ? [{ separator: true } as ContextMenuEntry] : []),
+      {
+        label: 'Clear Console',
+        icon: Trash2,
+        action: () => engineConsole.clear(),
+      },
+    ]
+    ctxVisible = true
+  }
 </script>
+
+<ContextMenu
+  items={ctxItems}
+  x={ctxX}
+  y={ctxY}
+  visible={ctxVisible}
+  onclose={() => ctxVisible = false}
+/>
 
 <aside class="console-panel">
   <header class="panel-header">
@@ -50,9 +86,13 @@
     </div>
   </header>
 
-  <div class="log-list" bind:this={logListEl} role="log" aria-live="polite">
+  <div class="log-list" bind:this={logListEl} role="log" aria-live="polite"
+    oncontextmenu={(e) => onLogRightClick(e, null)}
+  >
     {#each engineConsole.logs as entry (entry.id)}
-      <div class="log-entry {entry.level}" role="listitem">
+      <div class="log-entry {entry.level}" role="listitem"
+        oncontextmenu={(e) => { e.stopPropagation(); onLogRightClick(e, entry) }}
+      >
         <span class="log-icon">
           {#if entry.level === 'info'}
             <Info size={11} />

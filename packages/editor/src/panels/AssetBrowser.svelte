@@ -3,6 +3,8 @@
   import { sceneOpener } from "../stores/sceneOpener.svelte.ts";
   import { pickProjectFolder, listDirectory } from "../fs/filesystem.ts";
   import type { FSEntry } from "../fs/filesystem.ts";
+  import ContextMenu from "../lib/ContextMenu.svelte";
+  import type { ContextMenuEntry } from "../lib/ContextMenu.svelte";
   import {
     FolderOpen,
     Folder,
@@ -13,6 +15,8 @@
     FileCode,
     FileJson,
     ExternalLink,
+    Copy,
+    FolderInput,
   } from "@lucide/svelte";
 
   let entries = $state<FSEntry[]>([]);
@@ -61,7 +65,62 @@
       sceneOpener.requestOpen(path)
     }
   }
+
+  // Context menu
+  let ctxVisible = $state(false)
+  let ctxX = $state(0)
+  let ctxY = $state(0)
+  let ctxItems = $state<ContextMenuEntry[]>([])
+
+  function onEntryRightClick(e: MouseEvent, entry: FSEntry) {
+    e.preventDefault()
+    e.stopPropagation()
+    ctxX = e.clientX
+    ctxY = e.clientY
+    const fullPath = [...currentPath, entry.name].join('/')
+    ctxItems = [
+      ...(isBeoFile(entry.name) ? [{
+        label: 'Open Scene',
+        icon: ExternalLink,
+        action: () => sceneOpener.requestOpen(fullPath),
+      } as ContextMenuEntry] : []),
+      {
+        label: 'Copy Path',
+        icon: Copy,
+        action: () => navigator.clipboard.writeText(fullPath),
+      },
+    ]
+    ctxVisible = true
+  }
+
+  function onBgRightClick(e: MouseEvent) {
+    e.preventDefault()
+    ctxX = e.clientX
+    ctxY = e.clientY
+    ctxItems = [
+      {
+        label: 'Open Folder…',
+        icon: FolderInput,
+        action: () => openFolder(),
+      },
+      {
+        label: 'Copy Current Path',
+        icon: Copy,
+        disabled: currentPath.length === 0,
+        action: () => navigator.clipboard.writeText(currentPath.join('/')),
+      },
+    ]
+    ctxVisible = true
+  }
 </script>
+
+<ContextMenu
+  items={ctxItems}
+  x={ctxX}
+  y={ctxY}
+  visible={ctxVisible}
+  onclose={() => ctxVisible = false}
+/>
 
 <aside class="asset-browser">
   <header class="panel-header">
@@ -71,7 +130,7 @@
     {/if}
   </header>
 
-  <div class="asset-content">
+  <div class="asset-content" oncontextmenu={onBgRightClick}>
     {#if !project.folderHandle}
       <div class="no-project">
         <div class="no-project-icon">
@@ -127,6 +186,7 @@
                   handleFileClick(entry)
                 }
               }}
+              oncontextmenu={(e) => onEntryRightClick(e, entry)}
               onkeydown={(e) => {
                 if (e.key === 'Enter') {
                   if (entry.kind === 'directory') currentPath = [...currentPath, entry.name]

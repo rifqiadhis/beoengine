@@ -9,6 +9,8 @@
   import { engineConsole } from '../stores/console.svelte.ts'
   import { project } from '../stores/project.svelte.ts'
   import { readTextFile } from '../fs/filesystem.ts'
+  import ContextMenu from '../lib/ContextMenu.svelte'
+  import type { ContextMenuEntry } from '../lib/ContextMenu.svelte'
   import {
     Play,
     Pause,
@@ -16,9 +18,13 @@
     Move,
     Maximize2,
     RotateCw,
+    ZoomIn,
+    ZoomOut,
+    Crosshair,
   } from '@lucide/svelte'
 
   let canvasEl: HTMLCanvasElement
+  let canvasWrapperEl: HTMLDivElement
   let engine: Engine | null = null
   let editorScene: Scene | null = null
   let rafHandle = 0
@@ -169,12 +175,16 @@
     } catch (err) {
       engineConsole.error(`Failed to initialize engine: ${String(err)}`)
     }
+
+    // Attach wheel listener as non-passive so preventDefault works
+    canvasWrapperEl.addEventListener('wheel', onWheel, { passive: false })
   })
 
   onDestroy(() => {
     stopEditorLoop()
     engine?.stop()
     engine?.renderer.dispose()
+    canvasWrapperEl?.removeEventListener('wheel', onWheel)
   })
 
   function startEditorLoop() {
@@ -335,8 +345,93 @@
   function onMouseUp() {
     isDragging = false
     draggedNode = null
+    isPanning = false
+  }
+
+  // ── Pan (middle mouse) ────────────────────────────────────────────────
+  let isPanning = false
+  let panLastMouse = { x: 0, y: 0 }
+
+  function onMiddleDown(e: MouseEvent) {
+    if (e.button !== 1) return
+    isPanning = true
+    panLastMouse = { x: e.clientX, y: e.clientY }
+    e.preventDefault()
+  }
+
+  function onPanMove(e: MouseEvent) {
+    if (!isPanning || !engine) return
+    const cam = engine.camera
+    if (!cam) return
+    const zoom = cam.zoom
+    const dx = e.clientX - panLastMouse.x
+    const dy = e.clientY - panLastMouse.y
+    cam.x -= dx / zoom
+    cam.y -= dy / zoom
+    panLastMouse = { x: e.clientX, y: e.clientY }
+  }
+
+  // ── Scroll to zoom ────────────────────────────────────────────────────
+  function onWheel(e: WheelEvent) {
+    if (viewport.playState === 'playing') return
+    e.preventDefault()
+    const cam = engine?.camera
+    if (!cam) return
+    const factor = e.deltaY < 0 ? 1.1 : 0.9
+    cam.zoom = Math.max(0.05, Math.min(20, cam.zoom * factor))
+  }
+
+  // ── Viewport right-click context menu ────────────────────────────────
+  let vpCtxVisible = $state(false)
+  let vpCtxX = $state(0)
+  let vpCtxY = $state(0)
+  let vpCtxItems = $state<ContextMenuEntry[]>([])
+
+  function onViewportRightClick(e: MouseEvent) {
+    if (viewport.playState === 'playing') return
+    e.preventDefault()
+    vpCtxX = e.clientX
+    vpCtxY = e.clientY
+    vpCtxItems = [
+      {
+        label: 'Reset Camera',
+        icon: Crosshair,
+        action: () => {
+          const cam = engine?.camera
+          if (cam) { cam.x = 0; cam.y = 0; cam.zoom = 1 }
+        },
+      },
+      { separator: true },
+      {
+        label: 'Zoom In',
+        icon: ZoomIn,
+        shortcut: 'Scroll ↑',
+        action: () => {
+          const cam = engine?.camera
+          if (cam) cam.zoom = Math.min(20, cam.zoom * 1.25)
+        },
+      },
+      {
+        label: 'Zoom Out',
+        icon: ZoomOut,
+        shortcut: 'Scroll ↓',
+        action: () => {
+          const cam = engine?.camera
+          if (cam) cam.zoom = Math.max(0.05, cam.zoom * 0.8)
+        },
+      },
+    ]
+    vpCtxVisible = true
   }
 </script>
+
+<ContextMenu
+  items={vpCtxItems}
+  x={vpCtxX}
+  y={vpCtxY}
+  visible={vpCtxVisible}
+  onclose={() => vpCtxVisible = false}
+/>
 
 <div class="viewport-panel">
   <div class="viewport-toolbar">
@@ -389,18 +484,21 @@
       </button>
     </div>
 
-    <!-- Right: zoom -->
+    <!-- Right: zoom level -->
     <div class="toolbar-group right">
-      <span class="zoom-label">{Math.round(viewport.zoom * 100)}%</span>
+      <span class="zoom-label">{Math.round((engine?.camera?.zoom ?? 1) * 100)}%</span>
     </div>
   </div>
 
   <div
+    bind:this={canvasWrapperEl}
     class="canvas-wrapper"
-    onmousedown={onMouseDown}
-    onmousemove={onMouseMove}
+    class:panning={isPanning}
+    onmousedown={(e) => { onMouseDown(e); onMiddleDown(e) }}
+    onmousemove={(e) => { onMouseMove(e); onPanMove(e) }}
     onmouseup={onMouseUp}
     onmouseleave={onMouseUp}
+    oncontextmenu={onViewportRightClick}
     role="application"
   >
     <canvas bind:this={canvasEl} id="viewport-canvas"></canvas>
@@ -525,6 +623,11 @@
     flex: 1;
     position: relative;
     overflow: hidden;
+    cursor: default;
+  }
+
+  .canvas-wrapper.panning {
+    cursor: grabbing;
   }
 
   canvas {

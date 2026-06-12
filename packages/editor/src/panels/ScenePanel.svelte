@@ -3,9 +3,10 @@
   import { selection } from '../stores/selection.svelte.ts'
   import { history } from '../stores/history.svelte.ts'
   import { Node2D, Sprite, Camera2D, CollisionBody, type Node } from 'beo'
+  import ContextMenu from '../lib/ContextMenu.svelte'
+  import type { ContextMenuEntry } from '../lib/ContextMenu.svelte'
   import {
     Plus,
-    ChevronRight,
     ChevronDown,
     Box,
     Image,
@@ -17,6 +18,11 @@
     Play,
     Circle,
     SquareDashed,
+    Copy,
+    Clipboard,
+    Trash2,
+    Pencil,
+    UserPlus,
   } from '@lucide/svelte'
 
   type IconComponent = typeof Plus
@@ -53,7 +59,8 @@
 
   let showAddMenu = $state(false)
 
-  function handleAddNode(type: 'Node2D' | 'Sprite' | 'Camera2D' | 'CollisionBody') {
+  // ── Add Node ─────────────────────────────────────────────────────────────
+  function handleAddNode(type: 'Node2D' | 'Sprite' | 'Camera2D' | 'CollisionBody', parentId?: string) {
     if (!scene.activeScene) return
     history.takeSnapshot(scene.activeScene)
 
@@ -63,8 +70,8 @@
     else if (type === 'CollisionBody') newNode = new CollisionBody('New CollisionBody')
     else newNode = new Node2D('New Node2D')
 
-    const parentId = selection.selectedNodeId
-    let parent = parentId ? scene.activeScene.findById(parentId) : null
+    const pid = parentId ?? selection.selectedNodeId
+    const parent = pid ? scene.activeScene.findById(pid) : null
 
     if (parent) {
       parent.addChild(newNode)
@@ -77,34 +84,241 @@
     showAddMenu = false
   }
 
-  function deleteSelectedNode() {
-    if (!scene.activeScene || !selection.selectedNodeId) return
-    history.takeSnapshot(scene.activeScene)
-
-    const node = scene.activeScene.findById(selection.selectedNodeId)
+  // ── Delete ───────────────────────────────────────────────────────────────
+  function deleteNode(nodeId: string) {
+    if (!scene.activeScene) return
+    const node = scene.activeScene.findById(nodeId)
     if (!node) return
-
+    history.takeSnapshot(scene.activeScene)
     if (node.parent) {
       node.parent.removeChild(node)
     } else {
       scene.activeScene.removeNode(node)
     }
-
     selection.clear()
     scene.markDirty()
   }
 
+  // ── Copy / Paste ──────────────────────────────────────────────────────────
+  let clipboardNodeJSON: any = null
+
+  function copyNode(nodeId: string) {
+    if (!scene.activeScene) return
+    const node = scene.activeScene.findById(nodeId)
+    if (!node) return
+    clipboardNodeJSON = node.toJSON()
+  }
+
+  function pasteNode(parentId?: string) {
+    if (!clipboardNodeJSON || !scene.activeScene) return
+    const { SceneSerializer } = window as any
+    // Reconstruct from JSON — reuse SceneSerializer internals via re-parse trick
+    const { SceneSerializer: SS } = (window as any).BeoEngine ?? {}
+    // Fallback: deepclone the JSON and reset ids
+    const cloned = deepCloneResetIds(clipboardNodeJSON)
+    const { NodeRegistry } = getNodeRegistry()
+    const node = instantiateFromJSON(cloned, NodeRegistry)
+    if (!node) return
+    history.takeSnapshot(scene.activeScene)
+    const parent = parentId ? scene.activeScene.findById(parentId) : null
+    if (parent) parent.addChild(node)
+    else scene.activeScene.addNode(node)
+    scene.markDirty()
+    selection.select(node.id)
+  }
+
+  function getNodeRegistry() {
+    const NodeRegistry: Record<string, any> = { Node2D, Sprite, Camera2D, CollisionBody }
+    return { NodeRegistry }
+  }
+
+  function deepCloneResetIds(json: any): any {
+    const clone = JSON.parse(JSON.stringify(json))
+    resetIds(clone)
+    return clone
+  }
+
+  function resetIds(node: any) {
+    node.id = crypto.randomUUID()
+    if (Array.isArray(node.children)) {
+      node.children.forEach(resetIds)
+    }
+  }
+
+  function instantiateFromJSON(data: any, registry: Record<string, any>): Node | null {
+    const NodeClass = registry[data.type]
+    if (!NodeClass) return null
+    const node = new NodeClass()
+    node.fromJSON(data)
+    if (Array.isArray(data.children)) {
+      for (const childData of data.children) {
+        const child = instantiateFromJSON(childData, registry)
+        if (child) node.addChild(child)
+      }
+    }
+    return node
+  }
+
+  // ── Rename (inline) ───────────────────────────────────────────────────────
+  let renamingId = $state<string | null>(null)
+  let renameValue = $state('')
+
+  function startRename(nodeId: string) {
+    if (!scene.activeScene) return
+    const node = scene.activeScene.findById(nodeId)
+    if (!node) return
+    renamingId = nodeId
+    renameValue = node.name
+    // Focus the input on next tick
+    setTimeout(() => {
+      const input = document.getElementById(`rename-input-${nodeId}`)
+      if (input) (input as HTMLInputElement).select()
+    }, 0)
+  }
+
+  function commitRename(nodeId: string) {
+    if (!scene.activeScene) return
+    const node = scene.activeScene.findById(nodeId)
+    if (!node) return
+    const trimmed = renameValue.trim()
+    if (trimmed && trimmed !== node.name) {
+      history.takeSnapshot(scene.activeScene)
+      node.name = trimmed
+      scene.markDirty()
+    }
+    renamingId = null
+  }
+
+  function onRenameKeydown(e: KeyboardEvent, nodeId: string) {
+    if (e.key === 'Enter') commitRename(nodeId)
+    if (e.key === 'Escape') renamingId = null
+  }
+
+  // ── Context Menu ──────────────────────────────────────────────────────────
+  let ctxVisible = $state(false)
+  let ctxX = $state(0)
+  let ctxY = $state(0)
+  let ctxNodeId = $state<string | null>(null)
+
+  function buildContextMenu(nodeId: string): ContextMenuEntry[] {
+    const hasClipboard = clipboardNodeJSON !== null
+    return [
+      {
+        label: 'Rename',
+        icon: Pencil,
+        shortcut: 'F2',
+        action: () => startRename(nodeId),
+      },
+      { separator: true },
+      {
+        label: 'Add Child Node',
+        icon: UserPlus,
+        action: () => {
+          // Show type picker — for now just add Node2D as child
+          handleAddNode('Node2D', nodeId)
+        },
+      },
+      { separator: true },
+      {
+        label: 'Copy',
+        icon: Copy,
+        shortcut: 'Ctrl+C',
+        action: () => copyNode(nodeId),
+      },
+      {
+        label: 'Paste as Child',
+        icon: Clipboard,
+        shortcut: 'Ctrl+V',
+        disabled: !hasClipboard,
+        action: () => pasteNode(nodeId),
+      },
+      { separator: true },
+      {
+        label: 'Delete',
+        icon: Trash2,
+        shortcut: 'Del',
+        action: () => deleteNode(nodeId),
+      },
+    ]
+  }
+
+  // Background right-click (no node selected)
+  function buildBgContextMenu(): ContextMenuEntry[] {
+    const hasClipboard = clipboardNodeJSON !== null
+    return [
+      {
+        label: 'Add Node2D',
+        icon: Box,
+        action: () => handleAddNode('Node2D'),
+      },
+      {
+        label: 'Add Sprite',
+        icon: Image,
+        action: () => handleAddNode('Sprite'),
+      },
+      {
+        label: 'Add Camera2D',
+        icon: Camera,
+        action: () => handleAddNode('Camera2D'),
+      },
+      {
+        label: 'Add CollisionBody',
+        icon: SquareDashed,
+        action: () => handleAddNode('CollisionBody'),
+      },
+      { separator: true },
+      {
+        label: 'Paste',
+        icon: Clipboard,
+        disabled: !hasClipboard,
+        action: () => pasteNode(),
+      },
+    ]
+  }
+
+  let ctxItems = $state<ContextMenuEntry[]>([])
+
+  function showContextMenu(e: MouseEvent, nodeId: string | null) {
+    e.preventDefault()
+    e.stopPropagation()
+    ctxX = e.clientX
+    ctxY = e.clientY
+    ctxNodeId = nodeId
+    ctxItems = nodeId ? buildContextMenu(nodeId) : buildBgContextMenu()
+    ctxVisible = true
+    if (nodeId) selection.select(nodeId)
+  }
+
+  // ── Keyboard ──────────────────────────────────────────────────────────────
   function handleKeydown(e: KeyboardEvent) {
+    if (document.activeElement?.tagName === 'INPUT') return
+
     if (e.key === 'Delete' || e.key === 'Backspace') {
-      if (document.activeElement?.tagName === 'INPUT') return
-      deleteSelectedNode()
+      if (selection.selectedNodeId) deleteNode(selection.selectedNodeId)
+    }
+    if (e.key === 'F2' && selection.selectedNodeId) {
+      startRename(selection.selectedNodeId)
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key === 'c' && selection.selectedNodeId) {
+      copyNode(selection.selectedNodeId)
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+      pasteNode(selection.selectedNodeId ?? undefined)
     }
   }
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
 
-<aside class="scene-panel">
+<ContextMenu
+  items={ctxItems}
+  x={ctxX}
+  y={ctxY}
+  visible={ctxVisible}
+  onclose={() => ctxVisible = false}
+/>
+
+<aside class="scene-panel" oncontextmenu={(e) => showContextMenu(e, null)}>
   <header class="panel-header">
     <span class="panel-title">Scene</span>
     <div style="position: relative;">
@@ -131,6 +345,7 @@
       {#each rows as { node, depth } (node.id)}
         {@const isSelected = selection.selectedNodeId === node.id}
         {@const IconComp = NODE_TYPE_ICONS[node.type] ?? Circle}
+        {@const isRenaming = renamingId === node.id}
         <div
           class="node-row"
           class:selected={isSelected}
@@ -139,7 +354,11 @@
           aria-selected={isSelected}
           tabindex="0"
           onclick={() => selection.select(node.id)}
-          onkeydown={(e) => e.key === 'Enter' && selection.select(node.id)}
+          ondblclick={() => startRename(node.id)}
+          oncontextmenu={(e) => showContextMenu(e, node.id)}
+          onkeydown={(e) => {
+            if (e.key === 'Enter') selection.select(node.id)
+          }}
         >
           <span class="node-arrow">
             {#if node.children.length > 0}
@@ -151,8 +370,20 @@
           <span class="node-icon">
             <IconComp size={13} />
           </span>
-          <span class="node-name">{node.name}</span>
-          <span class="node-type">{node.type}</span>
+
+          {#if isRenaming}
+            <input
+              id="rename-input-{node.id}"
+              class="rename-input"
+              type="text"
+              bind:value={renameValue}
+              onblur={() => commitRename(node.id)}
+              onkeydown={(e) => onRenameKeydown(e, node.id)}
+            />
+          {:else}
+            <span class="node-name">{node.name}</span>
+            <span class="node-type">{node.type}</span>
+          {/if}
         </div>
       {/each}
     {/if}
@@ -309,6 +540,25 @@
     color: var(--text-muted);
     opacity: 0.5;
     flex-shrink: 0;
+  }
+
+  .rename-input {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--accent-border);
+    color: var(--text);
+    font-size: 12.5px;
+    font-family: var(--font-sans);
+    padding: 1px 6px;
+    border-radius: 3px;
+    outline: none;
+    height: 20px;
+    min-width: 0;
+  }
+
+  .rename-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(var(--accent-rgb, 99 102 241) / 0.2);
   }
 
   .empty-state {

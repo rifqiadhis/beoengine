@@ -76,9 +76,16 @@
       else history.undo()
     }
   }
+
+  function suppressContextMenu(e: MouseEvent) {
+    const tag = (e.target as HTMLElement).tagName
+    // Allow native menu on text inputs so cut/copy/paste still works
+    if (tag === 'INPUT' || tag === 'TEXTAREA') return
+    e.preventDefault()
+  }
 </script>
 
-<svelte:window onkeydown={handleKeydown} />
+<svelte:window onkeydown={handleKeydown} oncontextmenu={suppressContextMenu} />
 
 <svelte:head>
   <title>BeoEngine{project.projectName ? ` — ${project.projectName}` : ''}</title>

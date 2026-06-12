@@ -115,6 +115,11 @@ export class Engine extends EventEmitter<EngineEvents> {
     this.renderer.setCamera(camera)
   }
 
+  /** Get the active camera (useful for editor pan/zoom) */
+  get camera(): Camera2D | null {
+    return this.renderer.camera
+  }
+
   // ── Asset Resolver ─────────────────────────────────────────────────────
   /** 
    * Provide a custom resolver to map virtual asset paths to actual URLs 
